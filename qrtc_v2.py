@@ -318,8 +318,8 @@ BANK_ALIAS: dict[str, str] = {
     "kienlongbank":"klb","klb":"klb","kienlong":"klb","umee":"klb",
     # VietBank
     "vietbank":"vietbank","thuongtin":"vietbank",
-    # BaoViet Bank
-    "baovietbank":"bvb","bvb":"bvb","baoviet":"bvb",
+    # BaoViet Bank / Bảo Việt
+    "baovietbank":"bvb","baoviet":"bvb","baovietb":"bvb",
     # CBBank
     "cbbank":"cbb","cbb":"cbb","xaydung":"cbb",
     # OceanBank
@@ -350,6 +350,9 @@ BANK_ALIAS: dict[str, str] = {
     "vrb":"vrb","vietnga":"vrb",
     # Nonghyup
     "nonghyup":"nonghyup",
+    # Vikki Digital Bank
+    "vikki":"vikki","vikkibank":"vikki","vikkidigitalbank":"vikki",
+    "vikibank":"vikki","viki":"vikki",
     # DongA Bank
     "dongabank":"dab","dab":"dab","donga":"dab","dongasean":"dab",
     # PGBank
@@ -358,8 +361,10 @@ BANK_ALIAS: dict[str, str] = {
     "saigonbanksgbl":"sgbl","sgbl":"sgbl","saigoncongth":"sgbl","saigonbk":"sgbl",
     # SVB = ShinhanBank (thực tế alias dùng phổ biến)
     "svb": "shbvn",
-    # VietCapitalBank
-    "vietcapitalbank":"vcb2","bancviet":"vcb2","banviet":"vcb2",
+    # VietCapitalBank / BVBank / Bản Việt
+    "vietcapitalbank":"vccb","vietcapital":"vccb","bancviet":"vccb",
+    "banviet":"vccb","banvietbank":"vccb","bvbank":"vccb",
+    "bvb":"vccb","vccb":"vccb",
     # ViettelMoney
     "viettelmoney":"viettelm","viettelm":"viettelm",
     # VNPTMoney
@@ -391,6 +396,81 @@ BANK_ALIAS: dict[str, str] = {
     # BNPHN/BNPHCM
     "bnp":"bnphn","bnphn":"bnphn","bnphcm":"bnphcm",
 }
+
+# ── Bổ sung alias từ file mã bank upload — trùng thì bỏ qua ─────────────────
+_BANK_ALIAS_EXTRA = {
+    'dbsbankltdchinhanhthanhphohochiminh': 'dbs',
+    'kebhanahcmbank': 'kebhanahcm',
+    'kebhanahnbank': 'kebhanabn',
+    'nganhangaichungkasikornbankchinhanhtphochiminh': 'kbank',
+    'nganhangautuvaphattriencampuchiachinhanhhanoi': 'bidc',
+    'nganhangbnpparibaschinhanhhanoi': 'bnphn',
+    'nganhangbnpparibaschinhanhtphochiminh': 'bnphcm',
+    'nganhangcathayunitedbankchinhanhtphochiminh': 'cathay',
+    'nganhangcitibankchinhanhhanoi': 'citibank',
+    'nganhangcongnghiephanquoc': 'ibk',
+    'nganhanghoptacxavietnam': 'coopbank',
+    'nganhangkebhanachinhanhhanoi': 'kebhanabn',
+    'nganhangkebhanachinhanhtphochiminh': 'kebhanahcm',
+    'nganhangkookminchinhanhhanoi': 'kookminhn',
+    'nganhangkookminchinhanhthanhphohochiminh': 'kookminhcm',
+    'nganhangliendoanhvietnga': 'vrb',
+    'nganhangnonghyupchinhanhhanoi': 'nonghyup',
+    'nganhangnongnghiepvaphattriennongthonvietnam': 'agribank',
+    'nganhangsoliobank': 'liobank',
+    'nganhangsotimobybanvietbanktimobybanvietbank': 'timo',
+    'nganhangsoumeekienlongbank': 'klb',
+    'nganhangthuongmaitnhhmtvaiduong': 'oceanbank',
+    'nganhangthuongmaitnhhmtvdaukhitoancau': 'gpb',
+    'nganhangthuongmaitnhhmtvxaydungvietnam': 'cbb',
+    'nganhangtmcpachau': 'acb',
+    'nganhangtmcpaichungvietnam': 'pvcb',
+    'nganhangtmcpanbinh': 'abb',
+    'nganhangtmcpautuvaphattrienvietnam': 'bidv',
+    'nganhangtmcpbaca': 'bab',
+    'nganhangtmcpbanviet': 'vccb',
+    'nganhangtmcpbaoviet': 'bvb',
+    'nganhangtmcpcongthuongvietnam': 'icb',
+    'nganhangtmcphanghai': 'msb',
+    'nganhangtmcpkienlong': 'klb',
+    'nganhangtmcpkythuongvietnam': 'tcb',
+    'nganhangtmcplocphatvietnam': 'lpb',
+    'nganhangtmcpnama': 'nab',
+    'nganhangtmcpngoaithuongvietnam': 'vcb',
+    'nganhangtmcponga': 'dab',
+    'nganhangtmcpongnama': 'seab',
+    'nganhangtmcpphattrienthanhphohochiminh': 'hdb',
+    'nganhangtmcpphuongong': 'ocb',
+    'nganhangtmcpquanoi': 'mb',
+    'nganhangtmcpquocdan': 'ncb',
+    'nganhangtmcpquoctevietnam': 'vib',
+    'nganhangtmcpsaigon': 'scb',
+    'nganhangtmcpsaigoncongthuong': 'scb',
+    'nganhangtmcpsaigonhanoi': 'shb',
+    'nganhangtmcpsaigonthuongtin': 'stb',
+    'nganhangtmcptienphong': 'tpb',
+    'nganhangtmcpvieta': 'vab',
+    'nganhangtmcpvietnamthinhvuong': 'vpb',
+    'nganhangtmcpvietnamthuongtin': 'vietbank',
+    'nganhangtmcpxangdaupetrolimex': 'pgb',
+    'nganhangtmcpxuatnhapkhauvietnam': 'eib',
+    'nganhangtnhhindovina': 'ivb',
+    'nganhangtnhhmtvcimbvietnam': 'cimb',
+    'nganhangtnhhmtvhongleongvietnam': 'hlbvn',
+    'nganhangtnhhmtvhsbcvietnam': 'hsbc',
+    'nganhangtnhhmtvpublicvietnam': 'pbvn',
+    'nganhangtnhhmtvshinhanvietnam': 'shbvn',
+    'nganhangtnhhmtvstandardcharteredbankvietnam': 'scvn',
+    'nganhangtnhhmtvwoorivietnam': 'woori',
+    'nganhangunitedoverseaschinhanhtphochiminh': 'uob',
+    'tmcpvietnamthinhvuongnganhangsocakebyvpbank': 'cake',
+    'tmcpvietnamthinhvuongnganhangsoubankbyvpbank': 'ubank',
+    'tongcongtydichvusoviettelchinhanhtapoancongnghiepvienthongquanoi': 'viettelm',
+    'trungtamdichvutaichinhsovnptchinhanhtongcongtytruyenthongvnptfintech': 'vnptm'
+}
+for _k, _v in _BANK_ALIAS_EXTRA.items():
+    BANK_ALIAS.setdefault(_k, _v)
+
 
 def _vi_normalize(text: str) -> str:
     """Chuẩn hoá tên có dấu tiếng Việt về ASCII để tra cứu."""
