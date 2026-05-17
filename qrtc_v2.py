@@ -2351,40 +2351,45 @@ async def handle_whitelist_file(message: Message, bot: Bot) -> None:
     file_bytes = await bot.download_file(file_info.file_path)
     content = file_bytes.read().decode("utf-8", errors="ignore")
 
-    # Parse từng dòng: bank - mã thiết bị - tên TK - STK
-    # VD: shinhanbank -1447 - Dương Văn Dũng CO - 700040310032
-    valid = []
+    # Parse từng dòng — hỗ trợ format file:
+    #   CA B - LE NGOC NGHIA 104101010588 -WOORI
+    #   CA A - NÔNG KẾ TIẾP - 9990867359400 -HD Bank
+    # Logic: bank ở CUỐI (sau dấu - cuối), prefix CA A/B/TC A/B bỏ đi,
+    #        STK = dãy số dài nhất >= 6 ký tự, tên = phần còn lại
+    valid  = []
     errors = []
     for i, line in enumerate(content.splitlines(), 1):
-        line = line.strip()
+        line = line.strip().strip('"')
         if not line or line.startswith("#"):
             continue
-        parts = [p.strip() for p in re.split(r"\s*-\s*", line) if p.strip()]
-        if len(parts) < 2:
-            errors.append(f"Dòng {i}: '{line[:50]}' — không đủ thông tin")
+
+        # 1. Tách bank ở cuối dòng
+        bank_match = re.search(r'-\s*([^-]+)\s*$', line)
+        if not bank_match:
+            errors.append(f"Dòng {i}: '{line[:50]}' — không tìm được ngân hàng")
+            continue
+        bank     = bank_match.group(1).strip()
+        leftover = line[:bank_match.start()].strip()
+
+        # 2. Bỏ prefix CA A / CA B / TC A / TC B
+        leftover = re.sub(
+            r'^(CA\s*[AB]|TC\s*[AB])\s*[-–]?\s*',
+            '', leftover, flags=re.IGNORECASE
+        ).strip().strip('-').strip()
+
+        # 3. Tách STK (dãy số liên tiếp >= 6 ký tự)
+        stk_match = re.search(r'\b(\d{6,})\b', leftover)
+        if not stk_match:
+            errors.append(f"Dòng {i}: '{line[:50]}' — không tìm được STK")
             continue
 
-        # Format: bank - device_code - name - account
-        # VD: shinhanbank - 1447 - Dương Văn Dũng CO - 700040310032
-        device_code = ""
-        if len(parts) >= 4:
-            bank        = parts[0]
-            device_code = parts[1]            # mã thiết bị
-            name        = " ".join(parts[2:-1])
-            account     = parts[-1]
-        elif len(parts) == 3:
-            bank, name, account = parts[0], parts[1], parts[2]
-        elif len(parts) == 2:
-            bank, name, account = parts[0], "", parts[1]
-        else:
-            errors.append(f"Dòng {i}: '{line[:50]}' — không đọc được")
-            continue
+        stk  = re.sub(r"\D", "", stk_match.group(1))
+        name = (leftover[:stk_match.start()] + leftover[stk_match.end():])
+        name = name.strip().strip('-').strip()
+        if not name:
+            name = "UNKNOWN"
 
-        account_clean = re.sub(r"\D", "", account)
-        if not account_clean or len(account_clean) < 6:
-            errors.append(f"Dòng {i}: STK '{account}' không hợp lệ (cần >= 6 chữ số)")
-            continue
-        valid.append({"bank": bank, "device_code": device_code, "account": account_clean, "name": name})
+        valid.append({"bank": bank, "device_code": "", "account": stk, "name": name})
 
     if not valid:
         await message.reply(
