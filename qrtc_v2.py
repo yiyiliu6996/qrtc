@@ -293,7 +293,7 @@ BANK_ALIAS: dict[str, str] = {
     # MSB
     "msb":"msb","maritimebank":"msb","hanghaibank":"msb","hanghai":"msb",
     # LPBank
-    449","lpb":"970449","locphat":"970449","lienphat":"970449",
+    "lpbank":"970449","lpb":"970449","locphat":"970449","lienphat":"970449",
     # OCB
     "ocb":"ocb","phuongdong":"ocb","orientcommercial":"ocb",
     # SeABank
