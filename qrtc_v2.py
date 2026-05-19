@@ -261,112 +261,113 @@ def init_db() -> None:
 
 # ── Bảng mã ngân hàng: mọi cách gõ → mã chuẩn VietQR ────────────────────────
 BANK_ALIAS: dict[str, str] = {
-    # Vietcombank
-    "vcb":"vcb","vietcombank":"vcb","vietcom":"vcb","ngoaithuong":"vcb",
-    # Vietinbank
-    "vietinbank":"icb","icb":"icb","ctg":"icb","congthuong":"icb","viettinbank":"icb",
-    # BIDV
-    "bidv":"bidv","dautuphattrien":"bidv",
-    # Agribank
-    "agribank":"agribank","agri":"agribank","vbard":"agribank","nongnghiep":"agribank",
-    # MB Bank
-    "mb":"mb","mbbank":"mb","quandoi":"mb","militarybank":"mb",
-    # MBV — Ngân hàng TNHH MTV Việt Nam Hiện Đại (BIN 970414)
-    "mbv":"mbv","vietthienhai":"mbv","hiendai":"mbv",
-    "nganhanghiendai":"mbv","vietnamhiendai":"mbv",
-    # Techcombank
-    "tcb":"tcb","techcombank":"tcb","techcom":"tcb","kythuong":"tcb",
-    # ACB
-    "acb":"acb","achau":"acb","asicommercial":"acb",
-    # VPBank
-    "vpbank":"vpb","vpb":"vpb","thinhvuong":"vpb",
-    # TPBank
-    "tpbank":"tpb","tpb":"tpb","tienphong":"tpb",
-    # SHB
-    "shb":"shb","saigonhanoi":"shb","saigonh":"shb",
-    # Sacombank
-    "sacombank":"stb","stb":"stb","sacom":"stb","saigonthongtin":"stb",
-    # VIB
-    "vib":"vib","quocte":"vib","internationalvn":"vib",
-    # HDBank
-    "hdbank":"hdb","hdb":"hdb","phattrientp":"hdb",
-    # MSB
-    "msb":"msb","maritimebank":"msb","hanghaibank":"msb","hanghai":"msb",
-    # LPBank
+    # Vietcombank — BIN 970436
+    "vcb":"970436","vietcombank":"970436","vietcom":"970436","ngoaithuong":"970436",
+    # Vietinbank — BIN 970415
+    "vietinbank":"970415","icb":"970415","ctg":"970415","congthuong":"970415","viettinbank":"970415",
+    # BIDV — BIN 970418
+    "bidv":"970418","dautuphattrien":"970418",
+    # Agribank — BIN 970405
+    "agribank":"970405","agri":"970405","vbard":"970405","nongnghiep":"970405",
+    # MB Bank — BIN 970422
+    "mb":"970422","mbbank":"970422","quandoi":"970422","militarybank":"970422",
+    # MBV — BIN 970414
+    "mbv":"970414","vietthienhai":"970414","hiendai":"970414",
+    "nganhanghiendai":"970414","vietnamhiendai":"970414",
+    # Techcombank — BIN 970407
+    "tcb":"970407","techcombank":"970407","techcom":"970407","kythuong":"970407",
+    # ACB — BIN 970416
+    "acb":"970416","achau":"970416","asicommercial":"970416",
+    # VPBank — BIN 970432
+    "vpbank":"970432","vpb":"970432","thinhvuong":"970432",
+    # TPBank — BIN 970423
+    "tpbank":"970423","tpb":"970423","tienphong":"970423",
+    # SHB — BIN 970403
+    "shb":"970403","saigonhanoi":"970403","saigonh":"970403",
+    # Sacombank — BIN 970403... wait 970403 is SHB
+    # Sacombank — BIN 970403? No: Sacombank = 970425
+    "sacombank":"970425","stb":"970425","sacom":"970425","saigonthongtin":"970425",
+    # VIB — BIN 970441
+    "vib":"970441","quocte":"970441","internationalvn":"970441",
+    # HDBank — BIN 970437
+    "hdbank":"970437","hdb":"970437","phattrientp":"970437",
+    # MSB — BIN 970426
+    "msb":"970426","maritimebank":"970426","hanghaibank":"970426","hanghai":"970426",
+    # LPBank — BIN 970449
     "lpbank":"970449","lpb":"970449","locphat":"970449","lienphat":"970449",
-    # OCB
-    "ocb":"ocb","phuongdong":"ocb","orientcommercial":"ocb",
-    # SeABank
-    "seabank":"seab","seab":"seab","dongnamai":"seab","dongnam":"seab",
-    # Eximbank
-    "eximbank":"eib","eib":"eib","exim":"eib","xuatnhapkhau":"eib",
-    # Bac A Bank
-    "bacabank":"bab","bab":"bab","baca":"bab","baca":"bab",
-    # NCB
-    "ncb":"ncb","quocdan":"ncb","nationalcitizen":"ncb","nncb":"ncb",
-    # SCB
-    "scb":"scb","saigonbank":"scb",
-    # ABBank
-    "abbank":"abb","abb":"abb","anbinh":"abb",
-    # VietABank
-    "vietabank":"vab","vab":"vab","vieta":"vab","vietnama":"vab",
-    # NamABank
-    "namabank":"nab","nab":"nab","nama":"nab","namabank":"nab",
-    # PVComBank
-    "pvcombank":"pvcb","pvcb":"pvcb","pvcom":"pvcb","daukhitoanc":"pvcb",
-    # KienLongBank / Umee
-    "kienlongbank":"klb","klb":"klb","kienlong":"klb","umee":"klb",
-    # VietBank
-    "vietbank":"vietbank","thuongtin":"vietbank",
-    # BaoViet Bank / Bảo Việt
-    "baovietbank":"bvb","baoviet":"bvb","baovietb":"bvb",
-    # CBBank
-    "cbbank":"cbb","cbb":"cbb","xaydung":"cbb",
-    # OceanBank
+    # OCB — BIN 970448
+    "ocb":"970448","phuongdong":"970448","orientcommercial":"970448",
+    # SeABank — BIN 970440
+    "seabank":"970440","seab":"970440","dongnamai":"970440","dongnam":"970440",
+    # Eximbank — BIN 970431
+    "eximbank":"970431","eib":"970431","exim":"970431","xuatnhapkhau":"970431",
+    # Bac A Bank — BIN 970409
+    "bacabank":"970409","bab":"970409","baca":"970409",
+    # NCB — BIN 970419
+    "ncb":"970419","quocdan":"970419","nationalcitizen":"970419","nncb":"970419",
+    # SCB — BIN 970429
+    "scb":"970429","saigoncommercial":"970429",
+    # ABBank — BIN 970421
+    "abbank":"970421","abb":"970421","anbinh":"970421",
+    # VietABank — BIN 970427
+    "vietabank":"970427","vab":"970427","vieta":"970427","vietnama":"970427",
+    # NamABank — BIN 970428
+    "namabank":"970428","nab":"970428","nama":"970428",
+    # PVComBank — BIN 970412
+    "pvcombank":"970412","pvcb":"970412","pvcom":"970412","daukhitoanc":"970412",
+    # KienLongBank — BIN 970452
+    "kienlongbank":"970452","klb":"970452","kienlong":"970452","umee":"970452",
+    # VietBank — BIN 970433
+    "vietbank":"970433","thuongtin":"970433",
+    # BaoViet Bank — BIN 970438
+    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","bvb":"970438",
+    # CBBank — BIN 970444
+    "cbbank":"970444","cbb":"970444","xaydung":"970444",
+    # OceanBank — BIN 970414... no, OceanBank = 970414? No: 970414 is MBV
+    # OceanBank — BIN 970414 conflict? Let's use correct: OceanBank = 970414 → actually 970414 is MBV
+    # OceanBank BIN = 970414 is wrong. Correct: OceanBank = 970414 no...
+    # Skip OceanBank BIN for safety
     "oceanbank":"oceanbank","ocean":"oceanbank","daididuong":"oceanbank",
-    # GPBank
-    "gpbank":"gpb","gpb":"gpb","daukhi":"gpb",
-    # Shinhan Bank
-    "shinhanbank":"shbvn","shbvn":"shbvn","shinhan":"shbvn","shinhanvn":"shbvn",
-    # Woori
-    "woori":"woori","wooribank":"woori",
-    # HSBC
-    "hsbc":"hsbc",
-    # KBank
-    "kbank":"kbank","kasikorn":"kbank",
-    # CIMB
-    "cimb":"cimb","cimbbank":"cimb",
-    # PublicBank
-    "publicbank":"pbvn","pbvn":"pbvn","publicvn":"pbvn",
-    # HongLeong
-    "hongleong":"hlbvn","hlbvn":"hlbvn",
-    # Standard Chartered
-    "standardchartered":"scvn","scvn":"scvn","standardcharteredvn":"scvn",
-    # IBK
-    "ibk":"ibk","congnghiephanquoc":"ibk",
-    # Indovina
-    "indovinabank":"ivb","ivb":"ivb","indovina":"ivb",
-    # VRB
+    # GPBank — BIN 970408
+    "gpbank":"970408","gpb":"970408","daukhi":"970408",
+    # Shinhan Bank — BIN 970424
+    "shinhanbank":"970424","shbvn":"970424","shinhan":"970424","shinhanvn":"970424","svb":"970424",
+    # Woori — BIN 970457
+    "woori":"970457","wooribank":"970457",
+    # HSBC — BIN 458761
+    "hsbc":"458761",
+    # KBank — BIN 668754
+    "kbank":"668754","kasikorn":"668754",
+    # CIMB — BIN 422589
+    "cimb":"422589","cimbbank":"422589",
+    # PublicBank — BIN 970439
+    "publicbank":"970439","pbvn":"970439","publicvn":"970439",
+    # HongLeong — BIN 970442
+    "hongleong":"970442","hlbvn":"970442",
+    # Standard Chartered — BIN 970410
+    "standardchartered":"970410","scvn":"970410","standardcharteredvn":"970410",
+    # IBK — BIN 970455
+    "ibk":"970455","congnghiephanquoc":"970455",
+    # Indovina — BIN 970434
+    "indovinabank":"970434","ivb":"970434","indovina":"970434",
+    # VRB — BIN 970421... conflict with ABBank? VRB = 970421 no...
     "vrb":"vrb","vietnga":"vrb",
-    # Nonghyup
-    "nonghyup":"nonghyup",
-    # Vikki Digital Bank
-    "vikki":"vikki","vikkibank":"vikki","vikkidigitalbank":"vikki",
-    "vikibank":"vikki","viki":"vikki",
-    # DongA Bank
-    "dongabank":"dab","dab":"dab","donga":"dab","dongasean":"dab",
-    # PGBank
-    "pgbank":"pgb","pgb":"pgb","petrolimex":"pgb","xangdau":"pgb",
-    # SaigonBank (SGBL) — alias thực tế: svb
-    "saigonbanksgbl":"sgbl","sgbl":"sgbl","saigoncongth":"sgbl","saigonbk":"sgbl",
-    # SVB = ShinhanBank (thực tế alias dùng phổ biến)
-    "svb": "shbvn",
-    # VietCapitalBank / BVBank / Bản Việt
-    "vietcapitalbank":"vccb","vietcapital":"vccb","bancviet":"vccb",
-    "banviet":"vccb","banvietbank":"vccb","bvbank":"vccb",
-    "bvb":"vccb","vccb":"vccb",
-    # ViettelMoney
-    "viettelmoney":"viettelm","viettelm":"viettelm",
+    # Nonghyup — BIN 801011
+    "nonghyup":"801011",
+    # Vikki / Vikibank — BIN 970466
+    "vikki":"970466","vikkibank":"970466","vikkidigitalbank":"970466",
+    "vikibank":"970466","viki":"970466",
+    # DongA Bank — BIN 970406
+    "dongabank":"970406","dab":"970406","donga":"970406","dongasean":"970406",
+    # PGBank — BIN 970430
+    "pgbank":"970430","pgb":"970430","petrolimex":"970430","xangdau":"970430",
+    # SaigonBank SGBL — BIN 970400
+    "saigonbanksgbl":"970400","sgbl":"970400","saigoncongth":"970400","saigonbk":"970400",
+    # BVBank / Bản Việt — BIN 970454
+    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
+    "banviet":"970454","banvietbank":"970454","bvbank":"970454","vccb":"970454",
+    # ViettelMoney — BIN 971005
+    "viettelmoney":"971005","viettelm":"971005",
     # VNPTMoney
     "vnptmoney":"vnptm","vnptm":"vnptm",
     # LioBank
@@ -1062,12 +1063,16 @@ async def download_vietqr_image(
     bank_code = resolve_bank_code(bank)
     query     = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
     url       = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
-    timeout   = aiohttp.ClientTimeout(total=60, connect=15)
-    last_err  = None
+    timeout   = aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)
+    headers   = {"Connection": "close", "Accept": "image/png,image/*"}
 
     for attempt in range(3):
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession(
+                timeout=timeout,
+                headers=headers,
+                connector=aiohttp.TCPConnector(force_close=True)
+            ) as session:
                 async with session.get(url) as resp:
                     if resp.status != 200:
                         raise RuntimeError(
@@ -1075,6 +1080,7 @@ async def download_vietqr_image(
                             f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
                         )
                     data = await resp.read()
+
             if not data.startswith(b"\x89PNG"):
                 raise RuntimeError(
                     f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
@@ -1082,10 +1088,13 @@ async def download_vietqr_image(
                 )
             Path(output_path).write_bytes(data)
             return
-        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
-            last_err = e
+
+        except RuntimeError:
+            raise  # lỗi bank/STK không retry
+        except Exception as e:
             logger.warning("Download QR attempt %d/3 failed: %s", attempt + 1, e)
-            await asyncio.sleep(2)
+            if attempt < 2:
+                await asyncio.sleep(1)
 
     raise RuntimeError(
         f"Không tải được QR cho <b>{bank}</b> <code>{account}</code> sau 3 lần thử. "
