@@ -36,18 +36,6 @@ from PIL import Image
 # Local dùng thư mục hiện tại
 _DATA_DIR = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", ".")
 DB_PATH          = os.path.join(_DATA_DIR, "outqrbot.db")
-
-# Shared HTTP session — tạo 1 lần, dùng lại cho tất cả requests
-_http_session: aiohttp.ClientSession | None = None
-
-async def get_http_session() -> aiohttp.ClientSession:
-    global _http_session
-    if _http_session is None or _http_session.closed:
-        _http_session = aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(limit=20),
-            timeout=aiohttp.ClientTimeout(total=30),
-        )
-    return _http_session
 CANCEL_LOG_PATH  = os.path.join(_DATA_DIR, "cancel_log.jsonl")
 CONFIG_PATH      = "config.json"  # chỉ dùng local
 
@@ -1075,21 +1063,33 @@ async def download_vietqr_image(
     query = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
     url   = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
 
-    session = await get_http_session()
-    async with session.get(url) as resp:
-        if resp.status != 200:
-            raise RuntimeError(
-                f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
-                f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
-            )
-        data = await resp.read()
-
-    if not data.startswith(b"\x89PNG"):
-        raise RuntimeError(
-            f"VietQR trả về dữ liệu không phải ảnh cho ngân hàng <b>{bank}</b> "
-            f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
-        )
-    Path(output_path).write_bytes(data)
+    timeout = aiohttp.ClientTimeout(total=60, connect=15)
+    last_err = None
+    for attempt in range(3):  # retry 3 lần
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        raise RuntimeError(
+                            f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
+                            f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
+                        )
+                    data = await resp.read()
+            if not data.startswith(b"\x89PNG"):
+                raise RuntimeError(
+                    f"VietQR trả về dữ liệu không phải ảnh cho ngân hàng <b>{bank}</b> "
+                    f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
+                )
+            Path(output_path).write_bytes(data)
+            return
+        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            last_err = e
+            logger.warning("Download QR attempt %d/3 failed: %s", attempt + 1, e)
+            await asyncio.sleep(1)
+    raise RuntimeError(
+        f"Không tải được QR cho <b>{bank}</b> <code>{account}</code> sau 3 lần thử. "
+        f"VietQR API có thể đang chậm, thử lại sau."
+    )
 
 
 def make_thumbnail(image_path: str, thumb_path: str) -> None:
@@ -3074,13 +3074,20 @@ async def _handle_text_inner(message: Message, bot: Bot) -> None:
     # --- Parse form ---
     try:
         parsed = parse_order_form(text)
+        logger.info("[PARSE OK] case=%s | total_qr=%s | sender=%s",
+                    parsed.get("case"), parsed.get("total_qr"),
+                    parsed.get("sender", {}).get("name"))
     except Exception as parse_err:
         logger.info("[DEBUG] Parse form thất bại: %s | text=%r", parse_err, text[:80])
         return
 
     # Kiểm tra whitelist trước khi tạo QR
+    logger.info("[WL CHECK] parsed case=%s receivers=%s",
+                parsed.get("case"),
+                [(r.get("bank"), r.get("account")) for r in parsed.get("receivers", [])])
     wl_errors = check_whitelist(parsed)
     if wl_errors:
+        logger.info("[WL BLOCK] %s", wl_errors)
         await message.reply(
             "❌ <b>Không thể tạo QR:</b>\n" + "\n".join(wl_errors),
             parse_mode=ParseMode.HTML,
@@ -3526,11 +3533,7 @@ async def main() -> None:
     asyncio.create_task(_send_startup())
     asyncio.create_task(_reminder_loop(bot))
     asyncio.create_task(_daily_report_loop(bot))
-    try:
-        await dp.start_polling(bot)
-    finally:
-        if _http_session and not _http_session.closed:
-            await _http_session.close()
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
