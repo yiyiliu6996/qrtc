@@ -1239,6 +1239,8 @@ async def send_order_qrs(
     sent_ids: List[int] = []
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        t0 = asyncio.get_event_loop().time()
+
         # ── Build danh sách tham số download QR ──────────────────────────────
         if case == 2:
             # QR hướng về TK người nhận, amount từ từng người chuyển
@@ -1275,6 +1277,8 @@ async def send_order_qrs(
                                   output_path=p["output_path"])
             for p in download_params
         ])
+        t1 = asyncio.get_event_loop().time()
+        logger.info("[TIMING] Download QR: %.2fs", t1 - t0)
 
         # Gửi từng QR tuần tự để đúng thứ tự
         loop = asyncio.get_event_loop()
@@ -1313,8 +1317,10 @@ async def send_order_qrs(
             if i == 0:
                 first_msg_id = msg.message_id
 
-        # Tin nhắn cuối: inline buttons reply vào QR đầu tiên
+        # Tin nhắn cuối: inline buttons
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        t2 = asyncio.get_event_loop().time()
+        logger.info("[TIMING] Send %d QR msgs: %.2fs", len(receivers), t2 - t1)
         kb = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="✅ Đã gửi đơn", callback_data=f"sent:{order_code}"),
             InlineKeyboardButton(text="❌ Hủy đơn",   callback_data=f"cancel:{order_code}"),
