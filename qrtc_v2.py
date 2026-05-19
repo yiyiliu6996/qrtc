@@ -91,6 +91,7 @@ BANK_WHITELIST_ENABLED:  bool     = bool(_cfg.get("BANK_WHITELIST_ENABLED", Fals
 WHITELIST_MODE:          str      = _cfg.get("WHITELIST_MODE", "blacklist")  # "blacklist" hoặc "strict"
 DEFAULT_TRANSFER_CONTENT: str     = _cfg.get("DEFAULT_TRANSFER_CONTENT", "")
 FORM_COOLDOWN_SECONDS:   int      = _cfg.get("FORM_COOLDOWN_SECONDS", 3)
+VIETQR_TEMPLATE:         str      = _cfg.get("VIETQR_TEMPLATE") or os.environ.get("VIETQR_TEMPLATE") or "compact2"
 
 # Validate
 if not BOT_TOKEN:
@@ -1094,30 +1095,41 @@ def _make_vietqr_string(bank_bin: str, account: str, amount: int, content: str) 
     return raw + format(crc, "04X")
 
 
-def _generate_qr_offline(
-    bank: str, account: str, account_name: str,
-    amount: int, content: str, output_path: str
-) -> None:
-    """Generate QR offline bằng segno — không cần gọi API VietQR."""
-    import segno as _segno
-
-    bank_code = resolve_bank_code(bank)
-    qr_str    = _make_vietqr_string(bank_code, account, amount, content or "")
-    qr        = _segno.make(qr_str, error="M")
-
-    # Save PNG với scale đủ lớn để scan được
-    qr.save(output_path, scale=8, border=2, dark="#000000", light="#ffffff")
-
-
 async def download_vietqr_image(
     bank: str, account: str, account_name: str,
     amount: int, content: str, output_path: str
 ) -> None:
-    """Generate QR offline — nhanh, không phụ thuộc VietQR API."""
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(
-        None,
-        lambda: _generate_qr_offline(bank, account, account_name, amount, content, output_path)
+    bank_code = resolve_bank_code(bank)
+    query     = urlencode({"amount": amount, "addInfo": content or "", "accountName": account_name})
+    url       = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
+    timeout   = aiohttp.ClientTimeout(total=30, connect=10)
+
+    for attempt in range(3):
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        raise RuntimeError(
+                            f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
+                            f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
+                        )
+                    data = await resp.read()
+            if not data.startswith(b"\x89PNG"):
+                raise RuntimeError(
+                    f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
+                    f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
+                )
+            Path(output_path).write_bytes(data)
+            return
+        except RuntimeError:
+            raise
+        except Exception as e:
+            logger.warning("Download QR attempt %d/3 failed: %s", attempt + 1, e)
+            if attempt < 2:
+                await asyncio.sleep(1)
+
+    raise RuntimeError(
+        f"Không tải được QR cho <b>{bank}</b> <code>{account}</code> sau 3 lần thử."
     )
 
 
