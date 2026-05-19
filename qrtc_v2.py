@@ -2979,6 +2979,13 @@ def check_whitelist(parsed: Dict[str, Any]) -> list:
 async def handle_text(message: Message, bot: Bot) -> None:
     if not message.from_user or not message.text:
         return
+    try:
+        await _handle_text_inner(message, bot)
+    except Exception as e:
+        logger.exception("Lỗi không bắt được trong handle_text: %s", e)
+
+
+async def _handle_text_inner(message: Message, bot: Bot) -> None:
 
     text = message.text.strip()
     # DEBUG — xoá sau khi xác nhận hoạt động
