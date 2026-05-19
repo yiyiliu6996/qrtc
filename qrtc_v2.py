@@ -1060,12 +1060,12 @@ async def download_vietqr_image(
     amount: int, content: str, output_path: str
 ) -> None:
     bank_code = resolve_bank_code(bank)
-    query = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
-    url   = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
+    query     = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
+    url       = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
+    timeout   = aiohttp.ClientTimeout(total=60, connect=15)
+    last_err  = None
 
-    timeout = aiohttp.ClientTimeout(total=60, connect=15)
-    last_err = None
-    for attempt in range(3):  # retry 3 lần
+    for attempt in range(3):
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as resp:
@@ -1077,7 +1077,7 @@ async def download_vietqr_image(
                     data = await resp.read()
             if not data.startswith(b"\x89PNG"):
                 raise RuntimeError(
-                    f"VietQR trả về dữ liệu không phải ảnh cho ngân hàng <b>{bank}</b> "
+                    f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
                     f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
                 )
             Path(output_path).write_bytes(data)
@@ -1085,10 +1085,11 @@ async def download_vietqr_image(
         except (asyncio.TimeoutError, aiohttp.ClientError) as e:
             last_err = e
             logger.warning("Download QR attempt %d/3 failed: %s", attempt + 1, e)
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
+
     raise RuntimeError(
         f"Không tải được QR cho <b>{bank}</b> <code>{account}</code> sau 3 lần thử. "
-        f"VietQR API có thể đang chậm, thử lại sau."
+        f"VietQR API đang chậm, thử lại sau."
     )
 
 
