@@ -1275,16 +1275,13 @@ async def send_order_qrs(
             for p in download_params
         ])
 
-        # PIL resize song song trong executor
-        loop = asyncio.get_event_loop()
-        all_bytes = await asyncio.gather(*[
-            loop.run_in_executor(None, lambda rp=raw_p: _make_qr_bytes_sync(rp))
-            for raw_p in raw_paths
-        ])
-
         # Gửi từng QR tuần tự để đúng thứ tự
+        loop = asyncio.get_event_loop()
         first_msg_id = None
-        for i, (r, raw_p, (doc_bytes, thumb_bytes)) in enumerate(zip(receivers, raw_paths, all_bytes)):
+        for i, (r, raw_p) in enumerate(zip(receivers, raw_paths)):
+            doc_bytes, thumb_bytes = await loop.run_in_executor(
+                None, lambda rp=raw_p: _make_qr_bytes_sync(rp)
+            )
 
             if case == 2:
                 recv_info = parsed["sender"]
