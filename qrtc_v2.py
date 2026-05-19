@@ -323,7 +323,7 @@ BANK_ALIAS: dict[str, str] = {
     # VietBank — BIN 970433
     "vietbank":"970433","thuongtin":"970433",
     # BaoViet Bank — BIN 970438
-    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","baovietbank":"970438",
+    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","bvb":"970438",
     # CBBank — BIN 970444
     "cbbank":"970444","cbb":"970444","xaydung":"970444",
     # OceanBank — BIN 970414... no, OceanBank = 970414? No: 970414 is MBV
@@ -367,7 +367,7 @@ BANK_ALIAS: dict[str, str] = {
     # SaigonBank SGBL — BIN 970400
     "saigonbanksgbl":"970400","sgbl":"970400","saigoncongth":"970400","saigonbk":"970400",
     # BVBank / Bản Việt — BIN 970454
-    "vietcapitalbank":"970454","vietcapital":"970454","bvb":"970454",
+    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
     "banviet":"970454","banvietbank":"970454","bvbank":"970454","vccb":"970454",
     # ViettelMoney — BIN 971005
     "viettelmoney":"971005","viettelm":"971005",
