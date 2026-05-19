@@ -3076,7 +3076,7 @@ async def handle_text(message: Message, bot: Bot) -> None:
         logger.info("Tạo đơn thành công: %s (%d QR, %d đ)",
                     order_code, parsed["total_qr"], parsed["total_amount"])
     except Exception as e:
-        logger.error("Lỗi tạo đơn %s: %s", order_code, e)
+        logger.error("Lỗi tạo đơn %s: %s", order_code, e, exc_info=True)
         err_msg = str(e)
         # Lỗi ngân hàng/STK → trả thẳng vào nhóm
         is_bank_err = any(k in err_msg for k in ["Ngân hàng", "STK", "không hợp lệ", "không phải ảnh", "HTTP"])
