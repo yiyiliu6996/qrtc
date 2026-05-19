@@ -1056,49 +1056,68 @@ def is_superadmin(user_id: int) -> bool:
 
 # ─────────────────────────── QR GENERATION ───────────────────────────────────
 
+def _make_vietqr_string(bank_bin: str, account: str, amount: int, content: str) -> str:
+    """Build VietQR EMV string chuẩn NAPAS."""
+    def tlv(tag: str, val: str) -> str:
+        return f"{tag}{len(val):02d}{val}"
+
+    bank_info  = tlv("00", "A000000727")
+    bank_info += tlv("01", "QRIBFTTC")
+    bank_info += tlv("02", bank_bin)
+    bank_info += tlv("03", account)
+    mai = tlv("38", bank_info)
+
+    amt_field = tlv("54", str(amount)) if amount else ""
+    ref       = tlv("08", (content or "")[:25]) if content else ""
+    add_data  = tlv("62", ref) if ref else ""
+
+    raw = (
+        "000201"
+        "010212"
+        + mai
+        + "52040000"
+        + "5303704"
+        + amt_field
+        + "5802VN"
+        + "5910QrTC Bot"
+        + "6007Hanoi"
+        + add_data
+        + "6304"
+    )
+
+    crc = 0xFFFF
+    for ch in raw.encode():
+        crc ^= ch << 8
+        for _ in range(8):
+            crc = (crc << 1) ^ 0x1021 if crc & 0x8000 else crc << 1
+        crc &= 0xFFFF
+    return raw + format(crc, "04X")
+
+
+def _generate_qr_offline(
+    bank: str, account: str, account_name: str,
+    amount: int, content: str, output_path: str
+) -> None:
+    """Generate QR offline bằng segno — không cần gọi API VietQR."""
+    import segno as _segno
+
+    bank_code = resolve_bank_code(bank)
+    qr_str    = _make_vietqr_string(bank_code, account, amount, content or "")
+    qr        = _segno.make(qr_str, error="M")
+
+    # Save PNG với scale đủ lớn để scan được
+    qr.save(output_path, scale=8, border=2, dark="#000000", light="#ffffff")
+
+
 async def download_vietqr_image(
     bank: str, account: str, account_name: str,
     amount: int, content: str, output_path: str
 ) -> None:
-    bank_code = resolve_bank_code(bank)
-    query     = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
-    url       = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
-    timeout   = aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)
-    headers   = {"Connection": "close", "Accept": "image/png,image/*"}
-
-    for attempt in range(3):
-        try:
-            async with aiohttp.ClientSession(
-                timeout=timeout,
-                headers=headers,
-                connector=aiohttp.TCPConnector(force_close=True)
-            ) as session:
-                async with session.get(url) as resp:
-                    if resp.status != 200:
-                        raise RuntimeError(
-                            f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
-                            f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
-                        )
-                    data = await resp.read()
-
-            if not data.startswith(b"\x89PNG"):
-                raise RuntimeError(
-                    f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
-                    f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
-                )
-            Path(output_path).write_bytes(data)
-            return
-
-        except RuntimeError:
-            raise  # lỗi bank/STK không retry
-        except Exception as e:
-            logger.warning("Download QR attempt %d/3 failed: %s", attempt + 1, e)
-            if attempt < 2:
-                await asyncio.sleep(1)
-
-    raise RuntimeError(
-        f"Không tải được QR cho <b>{bank}</b> <code>{account}</code> sau 3 lần thử. "
-        f"VietQR API đang chậm, thử lại sau."
+    """Generate QR offline — nhanh, không phụ thuộc VietQR API."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: _generate_qr_offline(bank, account, account_name, amount, content, output_path)
     )
 
 
