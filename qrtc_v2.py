@@ -323,7 +323,7 @@ BANK_ALIAS: dict[str, str] = {
     # VietBank — BIN 970433
     "vietbank":"970433","thuongtin":"970433",
     # BaoViet Bank — BIN 970438
-    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","baoviet":"970438",
+    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","baovietbank":"970438",
     # CBBank — BIN 970444
     "cbbank":"970444","cbb":"970444","xaydung":"970444",
     # OceanBank — BIN 970414... no, OceanBank = 970414? No: 970414 is MBV
@@ -1117,7 +1117,7 @@ async def download_vietqr_image(
                             f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
                         )
                     data = await resp.read()
-            if not data.startswith(b"\x89PNG"):
+            if not data.startswith(b"\x89PNG") and not data.startswith(b"\xff\xd8"):
                 raise RuntimeError(
                     f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
                     f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
