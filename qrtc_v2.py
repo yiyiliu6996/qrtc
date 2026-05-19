@@ -323,7 +323,7 @@ BANK_ALIAS: dict[str, str] = {
     # VietBank — BIN 970433
     "vietbank":"970433","thuongtin":"970433",
     # BaoViet Bank — BIN 970438
-    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","bvb":"970438",
+    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","baoviet":"970438",
     # CBBank — BIN 970444
     "cbbank":"970444","cbb":"970444","xaydung":"970444",
     # OceanBank — BIN 970414... no, OceanBank = 970414? No: 970414 is MBV
@@ -367,7 +367,7 @@ BANK_ALIAS: dict[str, str] = {
     # SaigonBank SGBL — BIN 970400
     "saigonbanksgbl":"970400","sgbl":"970400","saigoncongth":"970400","saigonbk":"970400",
     # BVBank / Bản Việt — BIN 970454
-    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
+    "vietcapitalbank":"970454","vietcapital":"970454","bvb":"970454",
     "banviet":"970454","banvietbank":"970454","bvbank":"970454","vccb":"970454",
     # ViettelMoney — BIN 971005
     "viettelmoney":"971005","viettelm":"971005",
@@ -433,7 +433,7 @@ _BANK_ALIAS_EXTRA = {
     'nganhangtmcpautuvaphattrienvietnam': 'bidv',
     'nganhangtmcpbaca': 'bab',
     'nganhangtmcpbanviet': 'vccb',
-    'nganhangtmcpbaoviet': 'bvb',
+    'nganhangtmcpbaoviet': 'baoviet',
     'nganhangtmcpcongthuongvietnam': 'icb',
     'nganhangtmcphanghai': 'msb',
     'nganhangtmcpkienlong': 'klb',
@@ -1101,52 +1101,11 @@ async def download_vietqr_image(
     bank: str, account: str, account_name: str,
     amount: int, content: str, output_path: str
 ) -> None:
-    """
-    Tạo QR bằng VietQR API v2 (POST) với xác thực client.
-    Fallback về img.vietqr.io nếu v2 fail.
-    """
+    """Tạo QR qua Cloudflare Worker proxy — bypass block IP Railway."""
     bank_code = resolve_bank_code(bank)
+    query     = urlencode({"amount": amount, "addInfo": content or "", "accountName": account_name})
+    url       = f"https://qrtc.yiyiliu6996.workers.dev/proxy/{bank_code}-{account}-compact2.png?{query}"
     timeout   = aiohttp.ClientTimeout(total=30, connect=10)
-
-    # ── Thử v2 API trước ─────────────────────────────────────────────────────
-    if VIETQR_CLIENT_ID and VIETQR_API_KEY:
-        try:
-            payload = {
-                "accountNo":   account,
-                "accountName": account_name,
-                "acqId":       bank_code,
-                "amount":      amount,
-                "addInfo":     content or "",
-                "format":      "text",
-                "template":    "compact2",
-            }
-            headers = {
-                "x-client-id":  VIETQR_CLIENT_ID,
-                "x-api-key":    VIETQR_API_KEY,
-                "Content-Type": "application/json",
-            }
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(
-                    "https://api.vietqr.io/v2/generate",
-                    json=payload,
-                    headers=headers,
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json(content_type=None)
-                        img_b64 = (data.get("data") or {}).get("qrDataURL", "")
-                        if img_b64 and "base64," in img_b64:
-                            import base64 as _b64
-                            png = _b64.b64decode(img_b64.split("base64,")[1])
-                            if len(png) > 100:
-                                Path(output_path).write_bytes(png)
-                                logger.info("[QR] v2 API OK: %s %s", bank, account)
-                                return
-        except Exception as e:
-            logger.warning("[QR] v2 API failed, fallback to img: %s", e)
-
-    # ── Fallback: img.vietqr.io GET ───────────────────────────────────────────
-    query = urlencode({"amount": amount, "addInfo": content or "", "accountName": account_name})
-    url   = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
 
     for attempt in range(3):
         try:
@@ -1161,9 +1120,10 @@ async def download_vietqr_image(
             if not data.startswith(b"\x89PNG"):
                 raise RuntimeError(
                     f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
-                    f"STK <code>{account}</code>."
+                    f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
                 )
             Path(output_path).write_bytes(data)
+            logger.info("[QR] Worker OK: %s %s", bank, account)
             return
         except RuntimeError:
             raise
