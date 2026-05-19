@@ -36,6 +36,18 @@ from PIL import Image
 # Local dùng thư mục hiện tại
 _DATA_DIR = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", ".")
 DB_PATH          = os.path.join(_DATA_DIR, "outqrbot.db")
+
+# Shared HTTP session — tạo 1 lần, dùng lại cho tất cả requests
+_http_session: aiohttp.ClientSession | None = None
+
+async def get_http_session() -> aiohttp.ClientSession:
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(limit=20),
+            timeout=aiohttp.ClientTimeout(total=30),
+        )
+    return _http_session
 CANCEL_LOG_PATH  = os.path.join(_DATA_DIR, "cancel_log.jsonl")
 CONFIG_PATH      = "config.json"  # chỉ dùng local
 
@@ -1061,18 +1073,17 @@ async def download_vietqr_image(
 ) -> None:
     bank_code = resolve_bank_code(bank)
     query = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
-    url = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
+    url   = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-            if resp.status != 200:
-                raise RuntimeError(
-                    f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
-                    f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
-                )
-            data = await resp.read()
+    session = await get_http_session()
+    async with session.get(url) as resp:
+        if resp.status != 200:
+            raise RuntimeError(
+                f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
+                f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
+            )
+        data = await resp.read()
 
-    # Kiểm tra bytes trả về có phải PNG hợp lệ không
     if not data.startswith(b"\x89PNG"):
         raise RuntimeError(
             f"VietQR trả về dữ liệu không phải ảnh cho ngân hàng <b>{bank}</b> "
@@ -1264,12 +1275,16 @@ async def send_order_qrs(
             for p in download_params
         ])
 
-        # Gửi từng QR thành 1 tin nhắn riêng — tuần tự để đúng thứ tự
+        # PIL resize song song trong executor
+        loop = asyncio.get_event_loop()
+        all_bytes = await asyncio.gather(*[
+            loop.run_in_executor(None, lambda rp=raw_p: _make_qr_bytes_sync(rp))
+            for raw_p in raw_paths
+        ])
+
+        # Gửi từng QR tuần tự để đúng thứ tự
         first_msg_id = None
-        for i, (r, raw_p) in enumerate(zip(receivers, raw_paths)):
-            doc_bytes, thumb_bytes = await asyncio.get_event_loop().run_in_executor(
-                None, lambda rp=raw_p: _make_qr_bytes_sync(rp)
-            )
+        for i, (r, raw_p, (doc_bytes, thumb_bytes)) in enumerate(zip(receivers, raw_paths, all_bytes)):
 
             if case == 2:
                 recv_info = parsed["sender"]
@@ -3505,9 +3520,13 @@ async def main() -> None:
             f"👑 Superadmin : {', '.join(str(x) for x in sorted(SUPER_ADMIN_IDS))}"
         )
     asyncio.create_task(_send_startup())
-    asyncio.create_task(_reminder_loop(bot))        # nhắc 5p + 30p
-    asyncio.create_task(_daily_report_loop(bot))   # báo cáo 23:30 GMT+7
-    await dp.start_polling(bot)
+    asyncio.create_task(_reminder_loop(bot))
+    asyncio.create_task(_daily_report_loop(bot))
+    try:
+        await dp.start_polling(bot)
+    finally:
+        if _http_session and not _http_session.closed:
+            await _http_session.close()
 
 
 if __name__ == "__main__":
