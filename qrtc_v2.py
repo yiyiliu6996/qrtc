@@ -323,8 +323,10 @@ BANK_ALIAS: dict[str, str] = {
     # VietBank — BIN 970433
     "vietbank":"970433","thuongtin":"970433",
     # BaoViet Bank — BIN 970438
-    "baovietbank":"970438","baoviet":"970438","baovietb":"970438","baovietbank":"970438",
-    # CBBank — BIN 970444
+    "baovietbank":"970438","baoviet":"970438","baovietb":"970438",
+    # BVBank / Bản Việt — BIN 970454
+    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
+    "banviet":"970454","banvietbank":"970454","bvbank":"970454","bvb":"970454","vccb":"970454",
     "cbbank":"970444","cbb":"970444","xaydung":"970444",
     # OceanBank — BIN 970414... no, OceanBank = 970414? No: 970414 is MBV
     # OceanBank — BIN 970414 conflict? Let's use correct: OceanBank = 970414 → actually 970414 is MBV
@@ -367,7 +369,7 @@ BANK_ALIAS: dict[str, str] = {
     # SaigonBank SGBL — BIN 970400
     "saigonbanksgbl":"970400","sgbl":"970400","saigoncongth":"970400","saigonbk":"970400",
     # BVBank / Bản Việt — BIN 970454
-    "vietcapitalbank":"970454","vietcapital":"970454","bvb":"970454",
+    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
     "banviet":"970454","banvietbank":"970454","bvbank":"970454","vccb":"970454",
     # ViettelMoney — BIN 971005
     "viettelmoney":"971005","viettelm":"971005",
@@ -432,8 +434,8 @@ _BANK_ALIAS_EXTRA = {
     'nganhangtmcpanbinh': 'abb',
     'nganhangtmcpautuvaphattrienvietnam': 'bidv',
     'nganhangtmcpbaca': 'bab',
-    'nganhangtmcpbanviet': 'vccb',
-    'nganhangtmcpbaoviet': 'baoviet',
+    'nganhangtmcpbanviet': '970454',
+    'nganhangtmcpbaoviet': '970438',
     'nganhangtmcpcongthuongvietnam': 'icb',
     'nganhangtmcphanghai': 'msb',
     'nganhangtmcpkienlong': 'klb',
@@ -1101,10 +1103,9 @@ async def download_vietqr_image(
     bank: str, account: str, account_name: str,
     amount: int, content: str, output_path: str
 ) -> None:
-    """Tạo QR qua Cloudflare Worker proxy — bypass block IP Railway."""
     bank_code = resolve_bank_code(bank)
     query     = urlencode({"amount": amount, "addInfo": content or "", "accountName": account_name})
-    url       = f"https://qrtc.yiyiliu6996.workers.dev/proxy/{bank_code}-{account}-compact2.png?{query}"
+    url       = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
     timeout   = aiohttp.ClientTimeout(total=30, connect=10)
 
     for attempt in range(3):
@@ -1117,13 +1118,12 @@ async def download_vietqr_image(
                             f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
                         )
                     data = await resp.read()
-            if not data.startswith(b"\x89PNG") and not data.startswith(b"\xff\xd8"):
+            if not data.startswith(b"\x89PNG"):
                 raise RuntimeError(
                     f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
                     f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
                 )
             Path(output_path).write_bytes(data)
-            logger.info("[QR] Worker OK: %s %s", bank, account)
             return
         except RuntimeError:
             raise
