@@ -286,10 +286,10 @@ BANK_ALIAS: dict[str, str] = {
     # TPBank — BIN 970423
     "tpbank":"970423","tpb":"970423","tienphong":"970423",
     # SHB — BIN 970403
-    "shb":"970403","saigonhanoi":"970403","saigonh":"970403",
+    "shb":"970443","saigonhanoi":"970443","saigonh":"970443",
     # Sacombank — BIN 970403... wait 970403 is SHB
     # Sacombank — BIN 970403? No: Sacombank = 970425
-    "sacombank":"970425","stb":"970425","sacom":"970425","saigonthongtin":"970425",
+    "sacombank":"970403","stb":"970403","sacom":"970403","saigonthongtin":"970403",
     # VIB — BIN 970441
     "vib":"970441","quocte":"970441","internationalvn":"970441",
     # HDBank — BIN 970437
@@ -311,7 +311,7 @@ BANK_ALIAS: dict[str, str] = {
     # SCB — BIN 970429
     "scb":"970429","saigoncommercial":"970429",
     # ABBank — BIN 970421
-    "abbank":"970421","abb":"970421","anbinh":"970421",
+    "abbank":"970425","abb":"970425","anbinh":"970425",
     # VietABank — BIN 970427
     "vietabank":"970427","vab":"970427","vieta":"970427","vietnama":"970427",
     # NamABank — BIN 970428
@@ -356,7 +356,7 @@ BANK_ALIAS: dict[str, str] = {
     # Indovina — BIN 970434
     "indovinabank":"970434","ivb":"970434","indovina":"970434",
     # VRB — BIN 970421... conflict with ABBank? VRB = 970421 no...
-    "vrb":"vrb","vietnga":"vrb",
+    "vrb":"970421","vietnga":"970421",
     # Nonghyup — BIN 801011
     "nonghyup":"801011",
     # Vikki / Vikibank — BIN 970466
