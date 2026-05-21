@@ -1839,7 +1839,74 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
     ws_sum.column_dimensions["D"].width = 13
     ws_sum.column_dimensions["E"].width = 18
 
-    # --- Bảng tổng theo mã đơn ---
+    # ── Sheet 3: Bank TC ──────────────────────────────────────────────────────
+    ws3 = wb.create_sheet("Sheet3")
+
+    # Row 1: tiêu đề nhóm
+    ws3.cell(1, 5,  "Bank TC").font = Font(bold=True, name="Calibri", size=10)
+    ws3.cell(1, 13, "Bank TC").font = Font(bold=True, name="Calibri", size=10)
+
+    # Row 2: header chính
+    ws3.append([
+        "Nhóm",
+        "Thông tin nhận", "Thông tin chuyển", "Mã đơn",
+        "Thu Ngoài", "Thu", "Chi/Xiafa", "Xuất Khoản", "Nạp Cashout", "Khác", "Ghi chú",
+        "Vách Ngăn",
+        "Thu Ngoài", "Thu", "Chi/Xiafa", "Xuất Khoản", "Nạp Cashout", "Khác", "Ghi chú",
+    ])
+    _apply_header_row(ws3, row_idx=2)
+
+    # Row 3: sub-header mô tả
+    ws3.append([
+        "QR-TC",
+        "Bank  Tên Người nhận", "Bank  Tên Người Chuyển", "Mã đơn",
+        None, None, None, None, None, "số tiền", "TC Thông tin nhận Mã đơn",
+        None,
+        "Số tiền", None, None, None, None, None, "TC Thông tin chuyển mã đơn",
+    ])
+
+    # Data rows — chỉ lấy đơn Hoàn thành
+    data_start3 = 4
+    for row in rows:
+        if row["status"] != "completed":
+            continue
+        recv_bank  = (row["receiver_bank"] or "").upper()
+        recv_name  = row["receiver_name"] or ""
+        send_bank  = (row["sender_bank"] or "").upper()
+        send_name  = row["sender_name"] or ""
+        order_code = row["order_code"] or ""
+        amount     = row["actual_amount"] or row["amount"]
+
+        recv_info = f"{recv_bank} {recv_name}".strip()
+        send_info = f"{send_bank} {send_name}".strip()
+
+        ws3.append([
+            row["group_name"] or "QR-TC",       # Nhóm
+            recv_info,                            # Thông tin nhận (bank + tên gộp)
+            send_info,                            # Thông tin chuyển (bank + tên gộp)
+            order_code,                           # Mã đơn
+            None, None, None, None, None,         # Thu Ngoài, Thu, Chi/Xiafa, Xuất Khoản, Nạp Cashout
+            amount,                               # Khác = số tiền (nửa trái)
+            f"TC {recv_info} {order_code}",       # Ghi chú trái
+            None,                                 # Vách Ngăn
+            amount,                               # Thu Ngoài = số tiền (nửa phải)
+            None, None, None, None, None,         # Thu, Chi/Xiafa, Xuất Khoản, Nạp Cashout, Khác
+            f"TC {send_info} {order_code}",       # Ghi chú phải
+        ])
+
+    # Định dạng cột tiền
+    for r in range(data_start3, ws3.max_row + 1):
+        ws3.cell(r, 10).number_format = _MONEY_FMT  # Khác trái
+        ws3.cell(r, 13).number_format = _MONEY_FMT  # Thu Ngoài phải
+
+    _apply_body_rows(ws3, start_row=data_start3)
+
+    # Column widths Sheet3
+    col_widths3 = [10, 28, 28, 14, 12, 8, 12, 14, 14, 14, 38, 4, 14, 8, 12, 14, 14, 8, 38]
+    for i, w in enumerate(col_widths3, 1):
+        ws3.column_dimensions[ws3.cell(1, i).column_letter].width = w
+
+    ws3.freeze_panes = "A4"
     date_row = ws_sum.max_row + 1
     ws_sum.append(["THỐNG KÊ THEO MÃ ĐƠN"])
     ws_sum.cell(date_row, 1).font = Font(bold=True, size=12, color="1F4E79", name="Calibri")
@@ -3528,12 +3595,26 @@ async def _daily_report_loop(bot: Bot) -> None:
 
                         # Gửi về đúng Group QR
                         try:
-                            await bot.send_document(
+                            sent_msg = await bot.send_document(
                                 chat_id=chat_id,
                                 document=FSInputFile(fpath, filename=fname_xlsx),
                                 caption=caption,
                                 parse_mode="HTML",
                             )
+                            # Tháo pin cũ
+                            try:
+                                await bot.unpin_all_chat_messages(chat_id=chat_id)
+                            except Exception:
+                                pass
+                            # Pin file mới
+                            try:
+                                await bot.pin_chat_message(
+                                    chat_id=chat_id,
+                                    message_id=sent_msg.message_id,
+                                    disable_notification=True,
+                                )
+                            except Exception as e:
+                                logger.warning("Không pin được báo cáo group %s: %s", chat_id, e)
                         except Exception as e:
                             logger.warning("Gửi báo cáo group %s thất bại: %s", chat_id, e)
 
