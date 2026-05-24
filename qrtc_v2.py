@@ -1739,16 +1739,33 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
     ws_detail.append(_DETAIL_HEADERS)
 
     for row in rows:
+        is_case2 = (row["order_case"] or 1) == 2
+        if is_case2:
+            # Case 2: sender_* = TK nhận, receiver_* = người chuyển → đảo lại
+            send_bank = row["receiver_bank"]
+            send_stk  = row["receiver_account"]
+            send_name = row["receiver_name"]
+            recv_bank = row["sender_bank"]
+            recv_stk  = row["sender_account"]
+            recv_name = row["sender_name"]
+        else:
+            send_bank = row["sender_bank"]
+            send_stk  = row["sender_account"]
+            send_name = row["sender_name"]
+            recv_bank = row["receiver_bank"]
+            recv_stk  = row["receiver_account"]
+            recv_name = row["receiver_name"]
+
         ws_detail.append([
             row["created_at"],
             row["group_name"],
             row["creator_name"],
-            row["sender_bank"],
-            row["sender_account"],
-            row["sender_name"],
-            row["receiver_bank"],
-            row["receiver_account"],
-            row["receiver_name"],
+            send_bank,
+            send_stk,
+            send_name,
+            recv_bank,
+            recv_stk,
+            recv_name,
             row["amount"],
             row["actual_amount"] or row["amount"],
             row["content"],
@@ -1870,12 +1887,21 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
     for row in rows:
         if row["status"] != "completed":
             continue
-        recv_bank  = (row["receiver_bank"] or "").upper()
-        recv_name  = row["receiver_name"] or ""
-        recv_stk   = str(row["receiver_account"] or "")
-        send_bank  = (row["sender_bank"] or "").upper()
-        send_name  = row["sender_name"] or ""
-        send_stk   = str(row["sender_account"] or "")
+        is_case2 = (row["order_case"] or 1) == 2
+        if is_case2:
+            recv_bank = (row["sender_bank"] or "").upper()
+            recv_name = row["sender_name"] or ""
+            recv_stk  = str(row["sender_account"] or "")
+            send_bank = (row["receiver_bank"] or "").upper()
+            send_name = row["receiver_name"] or ""
+            send_stk  = str(row["receiver_account"] or "")
+        else:
+            recv_bank = (row["receiver_bank"] or "").upper()
+            recv_name = row["receiver_name"] or ""
+            recv_stk  = str(row["receiver_account"] or "")
+            send_bank = (row["sender_bank"] or "").upper()
+            send_name = row["sender_name"] or ""
+            send_stk  = str(row["sender_account"] or "")
         order_code = row["order_code"] or ""
         amount     = row["actual_amount"] or row["amount"]
 
@@ -1966,6 +1992,7 @@ def fetch_by_code(order_code: str) -> List[sqlite3.Row]:
                o.sender_bank, o.sender_account, o.sender_name,
                o.order_code, o.chat_id, o.status,
                o.completed_at, o.completed_by_name,
+               o.order_case,
                r.receiver_bank, r.receiver_account, r.receiver_name,
                r.amount, r.actual_amount, r.content, r.message_id
         FROM orders o
@@ -1988,7 +2015,7 @@ def fetch_by_date(date_str_ddmmyyyy: str, chat_id: Optional[int] = None) -> List
             SELECT o.created_at, o.group_name, o.creator_name,
                    o.sender_bank, o.sender_account, o.sender_name,
                    o.order_code, o.chat_id, o.status,
-                   o.completed_at, o.completed_by_name,
+                   o.completed_at, o.completed_by_name, o.order_case,
                    r.receiver_bank, r.receiver_account, r.receiver_name,
                    r.amount, r.actual_amount, r.content, r.message_id
             FROM orders o
@@ -2001,7 +2028,7 @@ def fetch_by_date(date_str_ddmmyyyy: str, chat_id: Optional[int] = None) -> List
             SELECT o.created_at, o.group_name, o.creator_name,
                    o.sender_bank, o.sender_account, o.sender_name,
                    o.order_code, o.chat_id, o.status,
-                   o.completed_at, o.completed_by_name,
+                   o.completed_at, o.completed_by_name, o.order_case,
                    r.receiver_bank, r.receiver_account, r.receiver_name,
                    r.amount, r.actual_amount, r.content, r.message_id
             FROM orders o
@@ -2649,74 +2676,94 @@ async def cb_wl_cancel(callback: CallbackQuery) -> None:
 @dp.message(F.photo)
 async def handle_bill_photo(message: Message, bot: Bot) -> None:
     """
-    Detect nhân viên reply ảnh vào card đơn trong Group Collect.
-    Bất kỳ ai trong group collect đều có thể xác nhận.
+    Xác nhận bill trong Group Collect:
+    Cách 1: Reply ảnh vào card đơn → xác nhận
+    Cách 2: Gửi ảnh kèm caption có mã XT... → xác nhận
     """
     if not message.from_user:
         return
     if message.chat.id != COLLECT_GROUP_ID:
         return
-    if not message.reply_to_message:
+
+    completer    = message.from_user.username or message.from_user.full_name or str(message.from_user.id)
+    completed_at = now_local().strftime("%H:%M %d/%m/%Y")
+    order_code   = None
+
+    # Cách 1: Reply vào card
+    if message.reply_to_message:
+        replied_id = message.reply_to_message.message_id
+        conn = db_connect()
+        row  = conn.execute(
+            "SELECT order_code, status FROM orders WHERE collect_message_id=?",
+            (replied_id,)
+        ).fetchone()
+        conn.close()
+        if row and row["status"] not in ("completed", "cancelled"):
+            order_code = row["order_code"]
+
+    # Cách 2: Caption có mã XT...
+    if not order_code:
+        caption = (message.caption or "").strip()
+        import re as _re
+        m = _re.search(r'\bXT\w+\b', caption, _re.IGNORECASE)
+        if m:
+            order_code = m.group(0).upper()
+
+    if not order_code:
         return
 
-    replied_id = message.reply_to_message.message_id
-
-    # Tìm đơn theo collect_message_id
-    conn = db_connect()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT order_code, chat_id, qr_message_id, button_message_id, status FROM orders WHERE collect_message_id=?",
-        (replied_id,)
-    )
-    row = cur.fetchone()
+    # Lấy thông tin đơn
+    conn  = db_connect()
+    order = conn.execute(
+        "SELECT order_code, chat_id, qr_message_id, button_message_id, "
+        "collect_message_id, status FROM orders WHERE order_code=?",
+        (order_code,)
+    ).fetchone()
     conn.close()
 
-    if not row or row["status"] in ("completed", "cancelled"):
+    if not order or order["status"] in ("completed", "cancelled"):
         return
-
-    order_code  = row["order_code"]
-    qr_chat_id  = row["chat_id"]
-    qr_msg_id   = row["qr_message_id"]
-    btn_msg_id  = row["button_message_id"]
-    completer  = message.from_user.username or message.from_user.full_name or str(message.from_user.id)
-    completed_at = now_local().strftime("%H:%M %d/%m/%Y")
 
     # Cập nhật DB
     conn = db_connect()
-    cur = conn.cursor()
-    cur.execute(
+    conn.execute(
         "UPDATE orders SET status='completed', completed_at=?, completed_by_name=? WHERE order_code=?",
         (now_local().strftime("%Y-%m-%d %H:%M:%S"), completer, order_code)
     )
     conn.commit()
     conn.close()
 
-    # Edit card trong Group Collect — dùng HTML nhất quán với lúc gửi
-    new_text = _build_collect_html(
+    # Edit card collect
+    collect_mid = order["collect_message_id"]
+    new_text    = _build_collect_html(
         order_code, status="completed",
         completer=completer, completed_at=completed_at
     )
-    try:
-        await bot.edit_message_text(
-            chat_id=COLLECT_GROUP_ID,
-            message_id=replied_id,
-            text=new_text,
-            parse_mode="HTML",
-        )
-    except Exception as edit_err:
-        logger.warning("Không edit được card collect: %s", edit_err)
+    if collect_mid and new_text:
         try:
-            await bot.send_message(
+            await bot.edit_message_text(
                 chat_id=COLLECT_GROUP_ID,
-                text=f"✅ <b>Đã có bill</b> — <code>{order_code}</code> — {completer} — {completed_at}",
+                message_id=collect_mid,
+                text=new_text,
                 parse_mode="HTML",
-                reply_to_message_id=replied_id,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Không edit được card collect: %s", e)
+            try:
+                await bot.send_message(
+                    chat_id=COLLECT_GROUP_ID,
+                    text=f"✅ <b>Đã có bill</b> — <code>{order_code}</code> — {completer} — {completed_at}",
+                    parse_mode="HTML",
+                    reply_to_message_id=collect_mid,
+                )
+            except Exception:
+                pass
 
-    # Update button trong Group QR (dùng button_message_id, không phải qr_message_id)
-    target_mid = btn_msg_id or qr_msg_id
+    # Update button Group QR
+    qr_chat_id = order["chat_id"]
+    btn_mid    = order["button_message_id"]
+    qr_mid     = order["qr_message_id"]
+    target_mid = btn_mid or qr_mid
     if target_mid and qr_chat_id:
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         kb = InlineKeyboardMarkup(inline_keyboard=[[
