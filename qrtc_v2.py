@@ -1443,8 +1443,8 @@ def save_order_to_db(
                  creator_user_id, creator_name, creator_username,
                  creator_message_id, qr_message_id, button_message_id,
                  sender_bank, sender_account, sender_name,
-                 total_amount, total_qr, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active')
+                 total_amount, total_qr, status, order_case)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',2)
         """, (
             order_code, ts, message.chat.id, chat_title(message),
             message.from_user.id, sender_display_name(message),
@@ -1452,7 +1452,7 @@ def save_order_to_db(
             message.message_id,
             sent_ids[0] if sent_ids else None,
             sent_ids[-1] if sent_ids else None,
-            recv_tk["bank"], recv_tk["account"], recv_tk["name"],   # TK nhận
+            recv_tk["bank"], recv_tk["account"], recv_tk["name"],
             parsed["total_amount"], parsed["total_qr"],
         ))
 
@@ -1478,8 +1478,8 @@ def save_order_to_db(
                  creator_user_id, creator_name, creator_username,
                  creator_message_id, qr_message_id, button_message_id,
                  sender_bank, sender_account, sender_name,
-                 total_amount, total_qr, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active')
+                 total_amount, total_qr, status, order_case)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',1)
         """, (
             order_code, ts, message.chat.id, chat_title(message),
             message.from_user.id, sender_display_name(message),
