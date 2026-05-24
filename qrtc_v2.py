@@ -255,6 +255,18 @@ def init_db() -> None:
         cur.execute("ALTER TABLE orders ADD COLUMN creator_username TEXT")
     except Exception:
         pass
+    try:
+        cur.execute("ALTER TABLE orders ADD COLUMN order_case INTEGER NOT NULL DEFAULT 1")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE receivers ADD COLUMN is_confirmed INTEGER NOT NULL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE receivers ADD COLUMN confirmed_at TEXT")
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()
