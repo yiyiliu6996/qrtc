@@ -1813,6 +1813,73 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
 
     ws_sum.freeze_panes = "A3"
 
+    # ── Sheet 3: Bank TC ──────────────────────────────────────────────────────
+    ws3 = wb.create_sheet("Sheet3")
+    ws3.cell(1, 7,  "Bank TC").font = Font(bold=True, name="Calibri", size=10)
+    ws3.cell(1, 15, "Bank TC").font = Font(bold=True, name="Calibri", size=10)
+
+    ws3.append([
+        "Nhóm", "Thông tin nhận", "STK nhận", "Thông tin chuyển", "STK chuyển", "Mã đơn",
+        "Thu Ngoài", "Thu", "Chi/Xiafa", "Xuất Khoản", "Nạp Cashout", "Khác", "Ghi chú",
+        "Vách Ngăn",
+        "Thu Ngoài", "Thu", "Chi/Xiafa", "Xuất Khoản", "Nạp Cashout", "Khác", "Ghi chú",
+    ])
+    _apply_header_row(ws3, row_idx=2)
+
+    ws3.append([
+        "QR-TC", "Bank  Tên Người nhận", "STK nhận", "Bank  Tên Người Chuyển", "STK chuyển", "Mã đơn",
+        None, None, None, None, None, "số tiền", "TC Thông tin nhận Mã đơn",
+        None,
+        "Số tiền", None, None, None, None, None, "TC Thông tin chuyển mã đơn",
+    ])
+
+    data_start3 = 4
+    for row in rows:
+        if row["status"] != "completed":
+            continue
+        is_case2 = (row.get("order_case") or 1) == 2
+        if is_case2:
+            recv_bank = (row["sender_bank"] or "").upper()
+            recv_name = row["sender_name"] or ""
+            recv_stk  = str(row["sender_account"] or "")
+            send_bank = (row["receiver_bank"] or "").upper()
+            send_name = row["receiver_name"] or ""
+            send_stk  = str(row["receiver_account"] or "")
+        else:
+            recv_bank = (row["receiver_bank"] or "").upper()
+            recv_name = row["receiver_name"] or ""
+            recv_stk  = str(row["receiver_account"] or "")
+            send_bank = (row["sender_bank"] or "").upper()
+            send_name = row["sender_name"] or ""
+            send_stk  = str(row["sender_account"] or "")
+
+        order_code = row["order_code"] or ""
+        amount     = row["actual_amount"] or row["amount"]
+        recv_info  = f"{recv_bank} {recv_name}".strip()
+        send_info  = f"{send_bank} {send_name}".strip()
+
+        r_idx = ws3.max_row + 1
+        ws3.append([
+            row["group_name"] or "QR-TC",
+            recv_info, None, send_info, None, order_code,
+            None, None, None, None, None, amount, f"TC {recv_info} {order_code}",
+            None,
+            amount, None, None, None, None, None, f"TC {send_info} {order_code}",
+        ])
+        c3 = ws3.cell(r_idx, 3); c3.value = recv_stk; c3.number_format = "@"
+        c5 = ws3.cell(r_idx, 5); c5.value = send_stk; c5.number_format = "@"
+
+    for r in range(data_start3, ws3.max_row + 1):
+        ws3.cell(r, 12).number_format = _MONEY_FMT
+        ws3.cell(r, 15).number_format = _MONEY_FMT
+
+    _apply_body_rows(ws3, start_row=data_start3)
+
+    col_widths3 = [10, 28, 18, 28, 18, 14, 12, 8, 12, 14, 14, 14, 38, 4, 14, 8, 12, 14, 14, 8, 38]
+    for i, w in enumerate(col_widths3, 1):
+        ws3.column_dimensions[ws3.cell(1, i).column_letter].width = w
+    ws3.freeze_panes = "A4"
+
     wb.save(output_path)
     logger.info("Excel đã lưu: %s", output_path)
 
