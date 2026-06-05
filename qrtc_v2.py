@@ -91,9 +91,6 @@ BANK_WHITELIST_ENABLED:  bool     = bool(_cfg.get("BANK_WHITELIST_ENABLED", Fals
 WHITELIST_MODE:          str      = _cfg.get("WHITELIST_MODE", "blacklist")  # "blacklist" hoặc "strict"
 DEFAULT_TRANSFER_CONTENT: str     = _cfg.get("DEFAULT_TRANSFER_CONTENT", "")
 FORM_COOLDOWN_SECONDS:   int      = _cfg.get("FORM_COOLDOWN_SECONDS", 3)
-VIETQR_CLIENT_ID:        str      = _cfg.get("VIETQR_CLIENT_ID") or os.environ.get("VIETQR_CLIENT_ID") or ""
-VIETQR_API_KEY:          str      = _cfg.get("VIETQR_API_KEY")   or os.environ.get("VIETQR_API_KEY")   or ""
-VIETQR_TEMPLATE:         str      = _cfg.get("VIETQR_TEMPLATE")  or os.environ.get("VIETQR_TEMPLATE")  or "compact2"
 
 # Validate
 if not BOT_TOKEN:
@@ -255,18 +252,6 @@ def init_db() -> None:
         cur.execute("ALTER TABLE orders ADD COLUMN creator_username TEXT")
     except Exception:
         pass
-    try:
-        cur.execute("ALTER TABLE orders ADD COLUMN order_case INTEGER NOT NULL DEFAULT 1")
-    except Exception:
-        pass
-    try:
-        cur.execute("ALTER TABLE receivers ADD COLUMN is_confirmed INTEGER NOT NULL DEFAULT 0")
-    except Exception:
-        pass
-    try:
-        cur.execute("ALTER TABLE receivers ADD COLUMN confirmed_at TEXT")
-    except Exception:
-        pass
 
     conn.commit()
     conn.close()
@@ -276,115 +261,112 @@ def init_db() -> None:
 
 # ── Bảng mã ngân hàng: mọi cách gõ → mã chuẩn VietQR ────────────────────────
 BANK_ALIAS: dict[str, str] = {
-    # Vietcombank — BIN 970436
-    "vcb":"970436","vietcombank":"970436","vietcom":"970436","ngoaithuong":"970436",
-    # Vietinbank — BIN 970415
-    "vietinbank":"970415","icb":"970415","ctg":"970415","congthuong":"970415","viettinbank":"970415",
-    # BIDV — BIN 970418
-    "bidv":"970418","dautuphattrien":"970418",
-    # Agribank — BIN 970405
-    "agribank":"970405","agri":"970405","vbard":"970405","nongnghiep":"970405",
-    # MB Bank — BIN 970422
-    "mb":"970422","mbbank":"970422","quandoi":"970422","militarybank":"970422",
-    # MBV — BIN 970414
-    "mbv":"970414","vietthienhai":"970414","hiendai":"970414",
-    "nganhanghiendai":"970414","vietnamhiendai":"970414",
-    # Techcombank — BIN 970407
-    "tcb":"970407","techcombank":"970407","techcom":"970407","kythuong":"970407",
-    # ACB — BIN 970416
-    "acb":"970416","achau":"970416","asicommercial":"970416",
-    # VPBank — BIN 970432
-    "vpbank":"970432","vpb":"970432","thinhvuong":"970432",
-    # TPBank — BIN 970423
-    "tpbank":"970423","tpb":"970423","tienphong":"970423",
-    # SHB — BIN 970403
-    "shb":"970443","saigonhanoi":"970443","saigonh":"970443",
-    # Sacombank — BIN 970403... wait 970403 is SHB
-    # Sacombank — BIN 970403? No: Sacombank = 970425
-    "sacombank":"970403","stb":"970403","sacom":"970403","saigonthongtin":"970403",
-    # VIB — BIN 970441
-    "vib":"970441","quocte":"970441","internationalvn":"970441",
-    # HDBank — BIN 970437
-    "hdbank":"970437","hdb":"970437","phattrientp":"970437",
-    # MSB — BIN 970426
-    "msb":"970426","maritimebank":"970426","hanghaibank":"970426","hanghai":"970426",
-    # LPBank — BIN 970449
+    # Vietcombank
+    "vcb":"vcb","vietcombank":"vcb","vietcom":"vcb","ngoaithuong":"vcb",
+    # Vietinbank
+    "vietinbank":"icb","icb":"icb","ctg":"icb","congthuong":"icb","viettinbank":"icb",
+    # BIDV
+    "bidv":"bidv","dautuphattrien":"bidv",
+    # Agribank
+    "agribank":"agribank","agri":"agribank","vbard":"agribank","nongnghiep":"agribank",
+    # MB Bank
+    "mb":"mb","mbbank":"mb","quandoi":"mb","militarybank":"mb",
+    # MBV — Ngân hàng TNHH MTV Việt Nam Hiện Đại (BIN 970414)
+    "mbv":"mbv","vietthienhai":"mbv","hiendai":"mbv",
+    "nganhanghiendai":"mbv","vietnamhiendai":"mbv",
+    # Techcombank
+    "tcb":"tcb","techcombank":"tcb","techcom":"tcb","kythuong":"tcb",
+    # ACB
+    "acb":"acb","achau":"acb","asicommercial":"acb",
+    # VPBank
+    "vpbank":"vpb","vpb":"vpb","thinhvuong":"vpb",
+    # TPBank
+    "tpbank":"tpb","tpb":"tpb","tienphong":"tpb",
+    # SHB
+    "shb":"shb","saigonhanoi":"shb","saigonh":"shb",
+    # Sacombank
+    "sacombank":"stb","stb":"stb","sacom":"stb","saigonthongtin":"stb",
+    # VIB
+    "vib":"vib","quocte":"vib","internationalvn":"vib",
+    # HDBank
+    "hdbank":"hdb","hdb":"hdb","phattrientp":"hdb",
+    # MSB
+    "msb":"msb","maritimebank":"msb","hanghaibank":"msb","hanghai":"msb",
+    # LPBank
     "lpbank":"970449","lpb":"970449","locphat":"970449","lienphat":"970449",
-    # OCB — BIN 970448
-    "ocb":"970448","phuongdong":"970448","orientcommercial":"970448",
-    # SeABank — BIN 970440
-    "seabank":"970440","seab":"970440","dongnamai":"970440","dongnam":"970440",
-    # Eximbank — BIN 970431
-    "eximbank":"970431","eib":"970431","exim":"970431","xuatnhapkhau":"970431",
-    # Bac A Bank — BIN 970409
-    "bacabank":"970409","bab":"970409","baca":"970409",
-    # NCB — BIN 970419
-    "ncb":"970419","quocdan":"970419","nationalcitizen":"970419","nncb":"970419",
-    # SCB — BIN 970429
-    "scb":"970429","saigoncommercial":"970429",
-    # ABBank — BIN 970421
-    "abbank":"970425","abb":"970425","anbinh":"970425",
-    # VietABank — BIN 970427
-    "vietabank":"970427","vab":"970427","vieta":"970427","vietnama":"970427",
-    # NamABank — BIN 970428
-    "namabank":"970428","nab":"970428","nama":"970428",
-    # PVComBank — BIN 970412
-    "pvcombank":"970412","pvcb":"970412","pvcom":"970412","daukhitoanc":"970412",
-    # KienLongBank — BIN 970452
-    "kienlongbank":"970452","klb":"970452","kienlong":"970452","umee":"970452",
-    # VietBank — BIN 970433
-    "vietbank":"970433","thuongtin":"970433",
-    # BaoViet Bank — BIN 970438
-    "baovietbank":"970438","baoviet":"970438","baovietb":"970438",
-    # BVBank / Bản Việt — BIN 970454
-    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
-    "banviet":"970454","banvietbank":"970454","bvbank":"970454","bvb":"970454","vccb":"970454",
-    "cbbank":"970444","cbb":"970444","xaydung":"970444",
-    # OceanBank — BIN 970414... no, OceanBank = 970414? No: 970414 is MBV
-    # OceanBank — BIN 970414 conflict? Let's use correct: OceanBank = 970414 → actually 970414 is MBV
-    # OceanBank BIN = 970414 is wrong. Correct: OceanBank = 970414 no...
-    # Skip OceanBank BIN for safety
+    # OCB
+    "ocb":"ocb","phuongdong":"ocb","orientcommercial":"ocb",
+    # SeABank
+    "seabank":"seab","seab":"seab","dongnamai":"seab","dongnam":"seab",
+    # Eximbank
+    "eximbank":"eib","eib":"eib","exim":"eib","xuatnhapkhau":"eib",
+    # Bac A Bank
+    "bacabank":"bab","bab":"bab","baca":"bab","baca":"bab",
+    # NCB
+    "ncb":"ncb","quocdan":"ncb","nationalcitizen":"ncb","nncb":"ncb",
+    # SCB
+    "scb":"scb","saigonbank":"scb",
+    # ABBank
+    "abbank":"abb","abb":"abb","anbinh":"abb",
+    # VietABank
+    "vietabank":"vab","vab":"vab","vieta":"vab","vietnama":"vab",
+    # NamABank
+    "namabank":"nab","nab":"nab","nama":"nab","namabank":"nab",
+    # PVComBank
+    "pvcombank":"pvcb","pvcb":"pvcb","pvcom":"pvcb","daukhitoanc":"pvcb",
+    # KienLongBank / Umee
+    "kienlongbank":"klb","klb":"klb","kienlong":"klb","umee":"klb",
+    # VietBank
+    "vietbank":"vietbank","thuongtin":"vietbank",
+    # BaoViet Bank / Bảo Việt
+    "baovietbank":"bvb","baoviet":"bvb","baovietb":"bvb",
+    # CBBank
+    "cbbank":"cbb","cbb":"cbb","xaydung":"cbb",
+    # OceanBank
     "oceanbank":"oceanbank","ocean":"oceanbank","daididuong":"oceanbank",
-    # GPBank — BIN 970408
-    "gpbank":"970408","gpb":"970408","daukhi":"970408",
-    # Shinhan Bank — BIN 970424
-    "shinhanbank":"970424","shbvn":"970424","shinhan":"970424","shinhanvn":"970424","svb":"970424",
-    # Woori — BIN 970457
-    "woori":"970457","wooribank":"970457",
-    # HSBC — BIN 458761
-    "hsbc":"458761",
-    # KBank — BIN 668754
-    "kbank":"668754","kasikorn":"668754",
-    # CIMB — BIN 422589
-    "cimb":"422589","cimbbank":"422589",
-    # PublicBank — BIN 970439
-    "publicbank":"970439","pbvn":"970439","publicvn":"970439",
-    # HongLeong — BIN 970442
-    "hongleong":"970442","hlbvn":"970442",
-    # Standard Chartered — BIN 970410
-    "standardchartered":"970410","scvn":"970410","standardcharteredvn":"970410",
-    # IBK — BIN 970455
-    "ibk":"970455","congnghiephanquoc":"970455",
-    # Indovina — BIN 970434
-    "indovinabank":"970434","ivb":"970434","indovina":"970434",
-    # VRB — BIN 970421... conflict with ABBank? VRB = 970421 no...
-    "vrb":"970421","vietnga":"970421",
-    # Nonghyup — BIN 801011
-    "nonghyup":"801011",
-    # Vikki / Vikibank — BIN 970466
-    "vikki":"970466","vikkibank":"970466","vikkidigitalbank":"970466",
-    "vikibank":"970466","viki":"970466",
-    # DongA Bank — BIN 970406
-    "dongabank":"970406","dab":"970406","donga":"970406","dongasean":"970406",
-    # PGBank — BIN 970430
-    "pgbank":"970430","pgb":"970430","petrolimex":"970430","xangdau":"970430",
-    # SaigonBank SGBL — BIN 970400
-    "saigonbanksgbl":"970400","sgbl":"970400","saigoncongth":"970400","saigonbk":"970400",
-    # BVBank / Bản Việt — BIN 970454
-    "vietcapitalbank":"970454","vietcapital":"970454","bancviet":"970454",
-    "banviet":"970454","banvietbank":"970454","bvbank":"970454","vccb":"970454",
-    # ViettelMoney — BIN 971005
-    "viettelmoney":"971005","viettelm":"971005",
+    # GPBank
+    "gpbank":"gpb","gpb":"gpb","daukhi":"gpb",
+    # Shinhan Bank
+    "shinhanbank":"shbvn","shbvn":"shbvn","shinhan":"shbvn","shinhanvn":"shbvn",
+    # Woori
+    "woori":"woori","wooribank":"woori",
+    # HSBC
+    "hsbc":"hsbc",
+    # KBank
+    "kbank":"kbank","kasikorn":"kbank",
+    # CIMB
+    "cimb":"cimb","cimbbank":"cimb",
+    # PublicBank
+    "publicbank":"pbvn","pbvn":"pbvn","publicvn":"pbvn",
+    # HongLeong
+    "hongleong":"hlbvn","hlbvn":"hlbvn",
+    # Standard Chartered
+    "standardchartered":"scvn","scvn":"scvn","standardcharteredvn":"scvn",
+    # IBK
+    "ibk":"ibk","congnghiephanquoc":"ibk",
+    # Indovina
+    "indovinabank":"ivb","ivb":"ivb","indovina":"ivb",
+    # VRB
+    "vrb":"vrb","vietnga":"vrb",
+    # Nonghyup
+    "nonghyup":"nonghyup",
+    # Vikki Digital Bank
+    "vikki":"vikki","vikkibank":"vikki","vikkidigitalbank":"vikki",
+    "vikibank":"vikki","viki":"vikki",
+    # DongA Bank
+    "dongabank":"dab","dab":"dab","donga":"dab","dongasean":"dab",
+    # PGBank
+    "pgbank":"pgb","pgb":"pgb","petrolimex":"pgb","xangdau":"pgb",
+    # SaigonBank (SGBL) — alias thực tế: svb
+    "saigonbanksgbl":"sgbl","sgbl":"sgbl","saigoncongth":"sgbl","saigonbk":"sgbl",
+    # SVB = ShinhanBank (thực tế alias dùng phổ biến)
+    "svb": "shbvn",
+    # VietCapitalBank / BVBank / Bản Việt
+    "vietcapitalbank":"vccb","vietcapital":"vccb","bancviet":"vccb",
+    "banviet":"vccb","banvietbank":"vccb","bvbank":"vccb",
+    "bvb":"vccb","vccb":"vccb",
+    # ViettelMoney
+    "viettelmoney":"viettelm","viettelm":"viettelm",
     # VNPTMoney
     "vnptmoney":"vnptm","vnptm":"vnptm",
     # LioBank
@@ -446,8 +428,8 @@ _BANK_ALIAS_EXTRA = {
     'nganhangtmcpanbinh': 'abb',
     'nganhangtmcpautuvaphattrienvietnam': 'bidv',
     'nganhangtmcpbaca': 'bab',
-    'nganhangtmcpbanviet': '970454',
-    'nganhangtmcpbaoviet': '970438',
+    'nganhangtmcpbanviet': 'vccb',
+    'nganhangtmcpbaoviet': 'bvb',
     'nganhangtmcpcongthuongvietnam': 'icb',
     'nganhangtmcphanghai': 'msb',
     'nganhangtmcpkienlong': 'klb',
@@ -1073,80 +1055,30 @@ def is_superadmin(user_id: int) -> bool:
 
 # ─────────────────────────── QR GENERATION ───────────────────────────────────
 
-def _make_vietqr_string(bank_bin: str, account: str, amount: int, content: str) -> str:
-    """Build VietQR EMV string chuẩn NAPAS."""
-    def tlv(tag: str, val: str) -> str:
-        return f"{tag}{len(val):02d}{val}"
-
-    bank_info  = tlv("00", "A000000727")
-    bank_info += tlv("01", "QRIBFTTC")
-    bank_info += tlv("02", bank_bin)
-    bank_info += tlv("03", account)
-    mai = tlv("38", bank_info)
-
-    amt_field = tlv("54", str(amount)) if amount else ""
-    ref       = tlv("08", (content or "")[:25]) if content else ""
-    add_data  = tlv("62", ref) if ref else ""
-
-    raw = (
-        "000201"
-        "010212"
-        + mai
-        + "52040000"
-        + "5303704"
-        + amt_field
-        + "5802VN"
-        + "5910QrTC Bot"
-        + "6007Hanoi"
-        + add_data
-        + "6304"
-    )
-
-    crc = 0xFFFF
-    for ch in raw.encode():
-        crc ^= ch << 8
-        for _ in range(8):
-            crc = (crc << 1) ^ 0x1021 if crc & 0x8000 else crc << 1
-        crc &= 0xFFFF
-    return raw + format(crc, "04X")
-
-
 async def download_vietqr_image(
     bank: str, account: str, account_name: str,
     amount: int, content: str, output_path: str
 ) -> None:
     bank_code = resolve_bank_code(bank)
-    query     = urlencode({"amount": amount, "addInfo": content or "", "accountName": account_name})
-    url       = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
-    timeout   = aiohttp.ClientTimeout(total=30, connect=10)
+    query = urlencode({"amount": amount, "addInfo": content, "accountName": account_name})
+    url = f"https://img.vietqr.io/image/{bank_code}-{account}-compact2.png?{query}"
 
-    for attempt in range(3):
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url) as resp:
-                    if resp.status != 200:
-                        raise RuntimeError(
-                            f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
-                            f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
-                        )
-                    data = await resp.read()
-            if not data.startswith(b"\x89PNG"):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+            if resp.status != 200:
                 raise RuntimeError(
-                    f"VietQR trả về dữ liệu không phải ảnh cho <b>{bank}</b> "
-                    f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
+                    f"Ngân hàng <b>{bank}</b> hoặc STK <code>{account}</code> không hợp lệ "
+                    f"(HTTP {resp.status}). Kiểm tra lại mã ngân hàng và số tài khoản."
                 )
-            Path(output_path).write_bytes(data)
-            return
-        except RuntimeError:
-            raise
-        except Exception as e:
-            logger.warning("Download QR attempt %d/3 failed: %s", attempt + 1, e)
-            if attempt < 2:
-                await asyncio.sleep(1)
+            data = await resp.read()
 
-    raise RuntimeError(
-        f"Không tải được QR cho <b>{bank}</b> <code>{account}</code> sau 3 lần thử."
-    )
+    # Kiểm tra bytes trả về có phải PNG hợp lệ không
+    if not data.startswith(b"\x89PNG"):
+        raise RuntimeError(
+            f"VietQR trả về dữ liệu không phải ảnh cho ngân hàng <b>{bank}</b> "
+            f"STK <code>{account}</code>. Kiểm tra lại mã ngân hàng."
+        )
+    Path(output_path).write_bytes(data)
 
 
 def make_thumbnail(image_path: str, thumb_path: str) -> None:
@@ -1295,8 +1227,6 @@ async def send_order_qrs(
     sent_ids: List[int] = []
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        t0 = asyncio.get_event_loop().time()
-
         # ── Build danh sách tham số download QR ──────────────────────────────
         if case == 2:
             # QR hướng về TK người nhận, amount từ từng người chuyển
@@ -1333,14 +1263,11 @@ async def send_order_qrs(
                                   output_path=p["output_path"])
             for p in download_params
         ])
-        t1 = asyncio.get_event_loop().time()
-        logger.info("[TIMING] Download QR: %.2fs", t1 - t0)
 
-        # Gửi từng QR tuần tự để đúng thứ tự
-        loop = asyncio.get_event_loop()
+        # Gửi từng QR thành 1 tin nhắn riêng — tuần tự để đúng thứ tự
         first_msg_id = None
         for i, (r, raw_p) in enumerate(zip(receivers, raw_paths)):
-            doc_bytes, thumb_bytes = await loop.run_in_executor(
+            doc_bytes, thumb_bytes = await asyncio.get_event_loop().run_in_executor(
                 None, lambda rp=raw_p: _make_qr_bytes_sync(rp)
             )
 
@@ -1373,10 +1300,8 @@ async def send_order_qrs(
             if i == 0:
                 first_msg_id = msg.message_id
 
-        # Tin nhắn cuối: inline buttons
+        # Tin nhắn cuối: inline buttons reply vào QR đầu tiên
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        t2 = asyncio.get_event_loop().time()
-        logger.info("[TIMING] Send %d QR msgs: %.2fs", len(receivers), t2 - t1)
         kb = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="✅ Đã gửi đơn", callback_data=f"sent:{order_code}"),
             InlineKeyboardButton(text="❌ Hủy đơn",   callback_data=f"cancel:{order_code}"),
@@ -1443,8 +1368,8 @@ def save_order_to_db(
                  creator_user_id, creator_name, creator_username,
                  creator_message_id, qr_message_id, button_message_id,
                  sender_bank, sender_account, sender_name,
-                 total_amount, total_qr, status, order_case)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',2)
+                 total_amount, total_qr, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active')
         """, (
             order_code, ts, message.chat.id, chat_title(message),
             message.from_user.id, sender_display_name(message),
@@ -1452,7 +1377,7 @@ def save_order_to_db(
             message.message_id,
             sent_ids[0] if sent_ids else None,
             sent_ids[-1] if sent_ids else None,
-            recv_tk["bank"], recv_tk["account"], recv_tk["name"],
+            recv_tk["bank"], recv_tk["account"], recv_tk["name"],   # TK nhận
             parsed["total_amount"], parsed["total_qr"],
         ))
 
@@ -1478,8 +1403,8 @@ def save_order_to_db(
                  creator_user_id, creator_name, creator_username,
                  creator_message_id, qr_message_id, button_message_id,
                  sender_bank, sender_account, sender_name,
-                 total_amount, total_qr, status, order_case)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active',1)
+                 total_amount, total_qr, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active')
         """, (
             order_code, ts, message.chat.id, chat_title(message),
             message.from_user.id, sender_display_name(message),
@@ -1751,33 +1676,16 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
     ws_detail.append(_DETAIL_HEADERS)
 
     for row in rows:
-        is_case2 = (row["order_case"] or 1) == 2
-        if is_case2:
-            # Case 2: sender_* = TK nhận, receiver_* = người chuyển → đảo lại
-            send_bank = row["receiver_bank"]
-            send_stk  = row["receiver_account"]
-            send_name = row["receiver_name"]
-            recv_bank = row["sender_bank"]
-            recv_stk  = row["sender_account"]
-            recv_name = row["sender_name"]
-        else:
-            send_bank = row["sender_bank"]
-            send_stk  = row["sender_account"]
-            send_name = row["sender_name"]
-            recv_bank = row["receiver_bank"]
-            recv_stk  = row["receiver_account"]
-            recv_name = row["receiver_name"]
-
         ws_detail.append([
             row["created_at"],
             row["group_name"],
             row["creator_name"],
-            send_bank,
-            send_stk,
-            send_name,
-            recv_bank,
-            recv_stk,
-            recv_name,
+            row["sender_bank"],
+            row["sender_account"],
+            row["sender_name"],
+            row["receiver_bank"],
+            row["receiver_account"],
+            row["receiver_name"],
             row["amount"],
             row["actual_amount"] or row["amount"],
             row["content"],
@@ -1868,92 +1776,7 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
     ws_sum.column_dimensions["D"].width = 13
     ws_sum.column_dimensions["E"].width = 18
 
-    # ── Sheet 3: Bank TC ──────────────────────────────────────────────────────
-    ws3 = wb.create_sheet("Sheet3")
-
-    # Row 1: tiêu đề nhóm
-    ws3.cell(1, 7,  "Bank TC").font = Font(bold=True, name="Calibri", size=10)
-    ws3.cell(1, 15, "Bank TC").font = Font(bold=True, name="Calibri", size=10)
-
-    # Row 2: header chính
-    ws3.append([
-        "Nhóm",
-        "Thông tin nhận", "STK nhận", "Thông tin chuyển", "STK chuyển", "Mã đơn",
-        "Thu Ngoài", "Thu", "Chi/Xiafa", "Xuất Khoản", "Nạp Cashout", "Khác", "Ghi chú",
-        "Vách Ngăn",
-        "Thu Ngoài", "Thu", "Chi/Xiafa", "Xuất Khoản", "Nạp Cashout", "Khác", "Ghi chú",
-    ])
-    _apply_header_row(ws3, row_idx=2)
-
-    # Row 3: sub-header mô tả
-    ws3.append([
-        "QR-TC",
-        "Bank  Tên Người nhận", "STK nhận", "Bank  Tên Người Chuyển", "STK chuyển", "Mã đơn",
-        None, None, None, None, None, "số tiền", "TC Thông tin nhận Mã đơn",
-        None,
-        "Số tiền", None, None, None, None, None, "TC Thông tin chuyển mã đơn",
-    ])
-
-    # Data rows — chỉ lấy đơn Hoàn thành
-    data_start3 = 4
-    for row in rows:
-        if row["status"] != "completed":
-            continue
-        is_case2 = (row["order_case"] or 1) == 2
-        if is_case2:
-            recv_bank = (row["sender_bank"] or "").upper()
-            recv_name = row["sender_name"] or ""
-            recv_stk  = str(row["sender_account"] or "")
-            send_bank = (row["receiver_bank"] or "").upper()
-            send_name = row["receiver_name"] or ""
-            send_stk  = str(row["receiver_account"] or "")
-        else:
-            recv_bank = (row["receiver_bank"] or "").upper()
-            recv_name = row["receiver_name"] or ""
-            recv_stk  = str(row["receiver_account"] or "")
-            send_bank = (row["sender_bank"] or "").upper()
-            send_name = row["sender_name"] or ""
-            send_stk  = str(row["sender_account"] or "")
-        order_code = row["order_code"] or ""
-        amount     = row["actual_amount"] or row["amount"]
-
-        recv_info = f"{recv_bank} {recv_name}".strip()
-        send_info = f"{send_bank} {send_name}".strip()
-
-        r_idx = ws3.max_row + 1
-        ws3.append([
-            row["group_name"] or "QR-TC",       # Nhóm
-            recv_info,                            # Thông tin nhận
-            None,                                 # STK nhận — ghi riêng bên dưới
-            send_info,                            # Thông tin chuyển
-            None,                                 # STK chuyển — ghi riêng bên dưới
-            order_code,                           # Mã đơn
-            None, None, None, None, None,         # Thu Ngoài→Nạp Cashout
-            amount,                               # Khác = số tiền trái
-            f"TC {recv_info} {order_code}",       # Ghi chú trái
-            None,                                 # Vách Ngăn
-            amount,                               # Thu Ngoài = số tiền phải
-            None, None, None, None, None,         # Thu→Khác
-            f"TC {send_info} {order_code}",       # Ghi chú phải
-        ])
-        # Ghi STK dạng text để giữ số 0 đầu
-        ws3.cell(r_idx, 3).value          = recv_stk
-        ws3.cell(r_idx, 3).number_format  = "@"
-        ws3.cell(r_idx, 5).value          = send_stk
-        ws3.cell(r_idx, 5).number_format  = "@"
-
-    # Định dạng cột tiền
-    for r in range(data_start3, ws3.max_row + 1):
-        ws3.cell(r, 12).number_format = _MONEY_FMT
-        ws3.cell(r, 15).number_format = _MONEY_FMT
-
-    _apply_body_rows(ws3, start_row=data_start3)
-
-    col_widths3 = [10, 28, 18, 28, 18, 14, 12, 8, 12, 14, 14, 14, 38, 4, 14, 8, 12, 14, 14, 8, 38]
-    for i, w in enumerate(col_widths3, 1):
-        ws3.column_dimensions[ws3.cell(1, i).column_letter].width = w
-
-    ws3.freeze_panes = "A4"
+    # --- Bảng tổng theo mã đơn ---
     date_row = ws_sum.max_row + 1
     ws_sum.append(["THỐNG KÊ THEO MÃ ĐƠN"])
     ws_sum.cell(date_row, 1).font = Font(bold=True, size=12, color="1F4E79", name="Calibri")
@@ -2004,7 +1827,6 @@ def fetch_by_code(order_code: str) -> List[sqlite3.Row]:
                o.sender_bank, o.sender_account, o.sender_name,
                o.order_code, o.chat_id, o.status,
                o.completed_at, o.completed_by_name,
-               o.order_case,
                r.receiver_bank, r.receiver_account, r.receiver_name,
                r.amount, r.actual_amount, r.content, r.message_id
         FROM orders o
@@ -2027,7 +1849,7 @@ def fetch_by_date(date_str_ddmmyyyy: str, chat_id: Optional[int] = None) -> List
             SELECT o.created_at, o.group_name, o.creator_name,
                    o.sender_bank, o.sender_account, o.sender_name,
                    o.order_code, o.chat_id, o.status,
-                   o.completed_at, o.completed_by_name, o.order_case,
+                   o.completed_at, o.completed_by_name,
                    r.receiver_bank, r.receiver_account, r.receiver_name,
                    r.amount, r.actual_amount, r.content, r.message_id
             FROM orders o
@@ -2040,7 +1862,7 @@ def fetch_by_date(date_str_ddmmyyyy: str, chat_id: Optional[int] = None) -> List
             SELECT o.created_at, o.group_name, o.creator_name,
                    o.sender_bank, o.sender_account, o.sender_name,
                    o.order_code, o.chat_id, o.status,
-                   o.completed_at, o.completed_by_name, o.order_case,
+                   o.completed_at, o.completed_by_name,
                    r.receiver_bank, r.receiver_account, r.receiver_name,
                    r.amount, r.actual_amount, r.content, r.message_id
             FROM orders o
@@ -2529,45 +2351,40 @@ async def handle_whitelist_file(message: Message, bot: Bot) -> None:
     file_bytes = await bot.download_file(file_info.file_path)
     content = file_bytes.read().decode("utf-8", errors="ignore")
 
-    # Parse từng dòng — hỗ trợ format file:
-    #   CA B - LE NGOC NGHIA 104101010588 -WOORI
-    #   CA A - NÔNG KẾ TIẾP - 9990867359400 -HD Bank
-    # Logic: bank ở CUỐI (sau dấu - cuối), prefix CA A/B/TC A/B bỏ đi,
-    #        STK = dãy số dài nhất >= 6 ký tự, tên = phần còn lại
-    valid  = []
+    # Parse từng dòng: bank - mã thiết bị - tên TK - STK
+    # VD: shinhanbank -1447 - Dương Văn Dũng CO - 700040310032
+    valid = []
     errors = []
     for i, line in enumerate(content.splitlines(), 1):
-        line = line.strip().strip('"')
+        line = line.strip()
         if not line or line.startswith("#"):
             continue
-
-        # 1. Tách bank ở cuối dòng
-        bank_match = re.search(r'-\s*([^-]+)\s*$', line)
-        if not bank_match:
-            errors.append(f"Dòng {i}: '{line[:50]}' — không tìm được ngân hàng")
-            continue
-        bank     = bank_match.group(1).strip()
-        leftover = line[:bank_match.start()].strip()
-
-        # 2. Bỏ prefix CA A / CA B / TC A / TC B
-        leftover = re.sub(
-            r'^(CA\s*[AB]|TC\s*[AB])\s*[-–]?\s*',
-            '', leftover, flags=re.IGNORECASE
-        ).strip().strip('-').strip()
-
-        # 3. Tách STK (dãy số liên tiếp >= 6 ký tự)
-        stk_match = re.search(r'\b(\d{6,})\b', leftover)
-        if not stk_match:
-            errors.append(f"Dòng {i}: '{line[:50]}' — không tìm được STK")
+        parts = [p.strip() for p in re.split(r"\s*-\s*", line) if p.strip()]
+        if len(parts) < 2:
+            errors.append(f"Dòng {i}: '{line[:50]}' — không đủ thông tin")
             continue
 
-        stk  = re.sub(r"\D", "", stk_match.group(1))
-        name = (leftover[:stk_match.start()] + leftover[stk_match.end():])
-        name = name.strip().strip('-').strip()
-        if not name:
-            name = "UNKNOWN"
+        # Format: bank - device_code - name - account
+        # VD: shinhanbank - 1447 - Dương Văn Dũng CO - 700040310032
+        device_code = ""
+        if len(parts) >= 4:
+            bank        = parts[0]
+            device_code = parts[1]            # mã thiết bị
+            name        = " ".join(parts[2:-1])
+            account     = parts[-1]
+        elif len(parts) == 3:
+            bank, name, account = parts[0], parts[1], parts[2]
+        elif len(parts) == 2:
+            bank, name, account = parts[0], "", parts[1]
+        else:
+            errors.append(f"Dòng {i}: '{line[:50]}' — không đọc được")
+            continue
 
-        valid.append({"bank": bank, "device_code": "", "account": stk, "name": name})
+        account_clean = re.sub(r"\D", "", account)
+        if not account_clean or len(account_clean) < 6:
+            errors.append(f"Dòng {i}: STK '{account}' không hợp lệ (cần >= 6 chữ số)")
+            continue
+        valid.append({"bank": bank, "device_code": device_code, "account": account_clean, "name": name})
 
     if not valid:
         await message.reply(
@@ -2688,94 +2505,74 @@ async def cb_wl_cancel(callback: CallbackQuery) -> None:
 @dp.message(F.photo)
 async def handle_bill_photo(message: Message, bot: Bot) -> None:
     """
-    Xác nhận bill trong Group Collect:
-    Cách 1: Reply ảnh vào card đơn → xác nhận
-    Cách 2: Gửi ảnh kèm caption có mã XT... → xác nhận
+    Detect nhân viên reply ảnh vào card đơn trong Group Collect.
+    Bất kỳ ai trong group collect đều có thể xác nhận.
     """
     if not message.from_user:
         return
     if message.chat.id != COLLECT_GROUP_ID:
         return
-
-    completer    = message.from_user.username or message.from_user.full_name or str(message.from_user.id)
-    completed_at = now_local().strftime("%H:%M %d/%m/%Y")
-    order_code   = None
-
-    # Cách 1: Reply vào card
-    if message.reply_to_message:
-        replied_id = message.reply_to_message.message_id
-        conn = db_connect()
-        row  = conn.execute(
-            "SELECT order_code, status FROM orders WHERE collect_message_id=?",
-            (replied_id,)
-        ).fetchone()
-        conn.close()
-        if row and row["status"] not in ("completed", "cancelled"):
-            order_code = row["order_code"]
-
-    # Cách 2: Caption có mã XT...
-    if not order_code:
-        caption = (message.caption or "").strip()
-        import re as _re
-        m = _re.search(r'\bXT\w+\b', caption, _re.IGNORECASE)
-        if m:
-            order_code = m.group(0).upper()
-
-    if not order_code:
+    if not message.reply_to_message:
         return
 
-    # Lấy thông tin đơn
-    conn  = db_connect()
-    order = conn.execute(
-        "SELECT order_code, chat_id, qr_message_id, button_message_id, "
-        "collect_message_id, status FROM orders WHERE order_code=?",
-        (order_code,)
-    ).fetchone()
+    replied_id = message.reply_to_message.message_id
+
+    # Tìm đơn theo collect_message_id
+    conn = db_connect()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT order_code, chat_id, qr_message_id, button_message_id, status FROM orders WHERE collect_message_id=?",
+        (replied_id,)
+    )
+    row = cur.fetchone()
     conn.close()
 
-    if not order or order["status"] in ("completed", "cancelled"):
+    if not row or row["status"] in ("completed", "cancelled"):
         return
+
+    order_code  = row["order_code"]
+    qr_chat_id  = row["chat_id"]
+    qr_msg_id   = row["qr_message_id"]
+    btn_msg_id  = row["button_message_id"]
+    completer  = message.from_user.username or message.from_user.full_name or str(message.from_user.id)
+    completed_at = now_local().strftime("%H:%M %d/%m/%Y")
 
     # Cập nhật DB
     conn = db_connect()
-    conn.execute(
+    cur = conn.cursor()
+    cur.execute(
         "UPDATE orders SET status='completed', completed_at=?, completed_by_name=? WHERE order_code=?",
         (now_local().strftime("%Y-%m-%d %H:%M:%S"), completer, order_code)
     )
     conn.commit()
     conn.close()
 
-    # Edit card collect
-    collect_mid = order["collect_message_id"]
-    new_text    = _build_collect_html(
+    # Edit card trong Group Collect — dùng HTML nhất quán với lúc gửi
+    new_text = _build_collect_html(
         order_code, status="completed",
         completer=completer, completed_at=completed_at
     )
-    if collect_mid and new_text:
+    try:
+        await bot.edit_message_text(
+            chat_id=COLLECT_GROUP_ID,
+            message_id=replied_id,
+            text=new_text,
+            parse_mode="HTML",
+        )
+    except Exception as edit_err:
+        logger.warning("Không edit được card collect: %s", edit_err)
         try:
-            await bot.edit_message_text(
+            await bot.send_message(
                 chat_id=COLLECT_GROUP_ID,
-                message_id=collect_mid,
-                text=new_text,
+                text=f"✅ <b>Đã có bill</b> — <code>{order_code}</code> — {completer} — {completed_at}",
                 parse_mode="HTML",
+                reply_to_message_id=replied_id,
             )
-        except Exception as e:
-            logger.warning("Không edit được card collect: %s", e)
-            try:
-                await bot.send_message(
-                    chat_id=COLLECT_GROUP_ID,
-                    text=f"✅ <b>Đã có bill</b> — <code>{order_code}</code> — {completer} — {completed_at}",
-                    parse_mode="HTML",
-                    reply_to_message_id=collect_mid,
-                )
-            except Exception:
-                pass
+        except Exception:
+            pass
 
-    # Update button Group QR
-    qr_chat_id = order["chat_id"]
-    btn_mid    = order["button_message_id"]
-    qr_mid     = order["qr_message_id"]
-    target_mid = btn_mid or qr_mid
+    # Update button trong Group QR (dùng button_message_id, không phải qr_message_id)
+    target_mid = btn_msg_id or qr_msg_id
     if target_mid and qr_chat_id:
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         kb = InlineKeyboardMarkup(inline_keyboard=[[
@@ -3165,13 +2962,6 @@ def check_whitelist(parsed: Dict[str, Any]) -> list:
 async def handle_text(message: Message, bot: Bot) -> None:
     if not message.from_user or not message.text:
         return
-    try:
-        await _handle_text_inner(message, bot)
-    except Exception as e:
-        logger.exception("Lỗi không bắt được trong handle_text: %s", e)
-
-
-async def _handle_text_inner(message: Message, bot: Bot) -> None:
 
     text = message.text.strip()
     # DEBUG — xoá sau khi xác nhận hoạt động
@@ -3260,20 +3050,13 @@ async def _handle_text_inner(message: Message, bot: Bot) -> None:
     # --- Parse form ---
     try:
         parsed = parse_order_form(text)
-        logger.info("[PARSE OK] case=%s | total_qr=%s | sender=%s",
-                    parsed.get("case"), parsed.get("total_qr"),
-                    parsed.get("sender", {}).get("name"))
     except Exception as parse_err:
         logger.info("[DEBUG] Parse form thất bại: %s | text=%r", parse_err, text[:80])
         return
 
     # Kiểm tra whitelist trước khi tạo QR
-    logger.info("[WL CHECK] parsed case=%s receivers=%s",
-                parsed.get("case"),
-                [(r.get("bank"), r.get("account")) for r in parsed.get("receivers", [])])
     wl_errors = check_whitelist(parsed)
     if wl_errors:
-        logger.info("[WL BLOCK] %s", wl_errors)
         await message.reply(
             "❌ <b>Không thể tạo QR:</b>\n" + "\n".join(wl_errors),
             parse_mode=ParseMode.HTML,
@@ -3288,7 +3071,7 @@ async def _handle_text_inner(message: Message, bot: Bot) -> None:
         logger.info("Tạo đơn thành công: %s (%d QR, %d đ)",
                     order_code, parsed["total_qr"], parsed["total_amount"])
     except Exception as e:
-        logger.error("Lỗi tạo đơn %s: %s", order_code, e, exc_info=True)
+        logger.error("Lỗi tạo đơn %s: %s", order_code, e)
         err_msg = str(e)
         # Lỗi ngân hàng/STK → trả thẳng vào nhóm
         is_bank_err = any(k in err_msg for k in ["Ngân hàng", "STK", "không hợp lệ", "không phải ảnh", "HTTP"])
@@ -3603,9 +3386,8 @@ async def _reminder_loop(bot: Bot) -> None:
 
 async def _daily_report_loop(bot: Bot) -> None:
     """
-    Tự động xuất báo cáo Excel cuối ngày lúc 23:30 GMT+7.
-    Mỗi Group QR nhận file riêng chỉ chứa đơn của group đó.
-    Đồng thời gửi bản tổng vào COLLECT_GROUP_ID.
+    Tự động xuất báo cáo Excel cuối ngày lúc 00:00 GMT+7.
+    Gửi vào Group QR, tháo pin cũ và pin file mới.
     """
     REPORT_HOUR   = 0
     REPORT_MINUTE = 0
@@ -3619,11 +3401,12 @@ async def _daily_report_loop(bot: Bot) -> None:
             if (now.hour == REPORT_HOUR and now.minute >= REPORT_MINUTE
                     and last_report_date != today_str):
 
-                # Báo cáo lúc 00:00 → lấy dữ liệu ngày HÔM QUA
                 from datetime import timedelta
                 report_date = (now - timedelta(days=1)).strftime("%d/%m/%Y")
                 safe_date   = (now - timedelta(days=1)).strftime("%d-%m-%Y")
-                cur = conn.cursor()
+
+                conn = db_connect()
+                cur  = conn.cursor()
                 cur.execute("SELECT DISTINCT chat_id FROM activated_chats")
                 active_chats = [r["chat_id"] for r in cur.fetchall()]
                 conn.close()
@@ -3631,7 +3414,6 @@ async def _daily_report_loop(bot: Bot) -> None:
                 has_any = False
 
                 for chat_id in active_chats:
-                    # Lấy đơn của riêng group này
                     rows = fetch_by_date(report_date, chat_id=chat_id)
                     if not rows:
                         continue
@@ -3639,29 +3421,29 @@ async def _daily_report_loop(bot: Bot) -> None:
                     has_any = True
                     total_orders = len(set(r["order_code"] for r in rows))
                     total_amount = sum(r["amount"] for r in rows)
-                    completed    = sum(1 for r in rows if r["status"] == "completed")
-                    cancelled    = sum(1 for r in rows if r["status"] == "cancelled")
+                    completed_rows = [r for r in rows if r["status"] == "completed"]
+                    completed    = len(set(r["order_code"] for r in completed_rows))
+                    cancelled    = len(set(r["order_code"] for r in rows if r["status"] == "cancelled"))
+                    total_completed_amount = sum(r["amount"] for r in completed_rows)
                     group_name   = rows[0]["group_name"] or str(chat_id)
 
+                    fname_xlsx = f"baocao_{safe_date}_{chat_id}.xlsx"
                     caption = (
                         f"📊 <b>Báo cáo ngày {report_date}</b>\n"
-                        f"🏘 {group_name}\n"
+                        f"🏴 {group_name}\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"📦 Tổng đơn   : <b>{total_orders}</b>\n"
-                        f"✅ Hoàn thành : <b>{completed}</b>\n"
-                        f"❌ Đã hủy     : <b>{cancelled}</b>\n"
-                        f"⏳ Chưa xử lý : <b>{total_orders - completed - cancelled}</b>\n"
-                        f"💰 Tổng tiền  : <b><code>{format_money(total_amount)}</code></b>"
+                        f"📦 Tổng đơn      : <b>{total_orders}</b>\n"
+                        f"✅ Hoàn thành    : <b>{completed}</b>\n"
+                        f"❌ Đã hủy        : <b>{cancelled}</b>\n"
+                        f"⏳ Chưa xử lý   : <b>{total_orders - completed - cancelled}</b>\n"
+                        f"💰 Tổng tiền     : <b><code>{format_money(total_amount)}</code></b>"
                     )
 
                     with tempfile.TemporaryDirectory() as tmpdir:
-                        fname_xlsx = f"baocao_{safe_date}.xlsx"
                         fpath = os.path.join(tmpdir, fname_xlsx)
                         export_orders_to_excel(rows, fpath)
 
                         from aiogram.types import FSInputFile
-
-                        # Gửi về đúng Group QR
                         try:
                             sent_msg = await bot.send_document(
                                 chat_id=chat_id,
@@ -3669,12 +3451,11 @@ async def _daily_report_loop(bot: Bot) -> None:
                                 caption=caption,
                                 parse_mode="HTML",
                             )
-                            # Tháo pin cũ
+                            # Tháo pin cũ → pin file mới
                             try:
                                 await bot.unpin_all_chat_messages(chat_id=chat_id)
                             except Exception:
                                 pass
-                            # Pin file mới
                             try:
                                 await bot.pin_chat_message(
                                     chat_id=chat_id,
@@ -3682,20 +3463,20 @@ async def _daily_report_loop(bot: Bot) -> None:
                                     disable_notification=True,
                                 )
                             except Exception as e:
-                                logger.warning("Không pin được báo cáo group %s: %s", chat_id, e)
+                                logger.warning("Không pin được báo cáo: %s", e)
                         except Exception as e:
                             logger.warning("Gửi báo cáo group %s thất bại: %s", chat_id, e)
 
-                    logger.info("Báo cáo %s group %s: %d đơn", today_str, chat_id, total_orders)
+                    logger.info("Báo cáo %s group %s: %d đơn", report_date, chat_id, total_orders)
 
                 if not has_any:
                     await notify_system(bot,
-                        f"📊 <b>Báo cáo ngày {report_date}</b>\n\nKhông có đơn nào trong ngày hôm nay.")
+                        f"📊 <b>Báo cáo ngày {report_date}</b>\n\nKhông có đơn nào.")
 
                 last_report_date = today_str
 
         except Exception as e:
-            logger.error("_daily_report_loop lỗi: %s", e)
+            logger.error("_daily_report_loop lỗi: %s", e, exc_info=True)
 
         await asyncio.sleep(60)
 
@@ -3731,8 +3512,8 @@ async def main() -> None:
             f"👑 Superadmin : {', '.join(str(x) for x in sorted(SUPER_ADMIN_IDS))}"
         )
     asyncio.create_task(_send_startup())
-    asyncio.create_task(_reminder_loop(bot))
-    asyncio.create_task(_daily_report_loop(bot))
+    asyncio.create_task(_reminder_loop(bot))        # nhắc 5p + 30p
+    asyncio.create_task(_daily_report_loop(bot))   # báo cáo 23:30 GMT+7
     await dp.start_polling(bot)
 
 
