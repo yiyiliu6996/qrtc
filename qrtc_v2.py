@@ -1837,7 +1837,7 @@ def export_orders_to_excel(rows: List[sqlite3.Row], output_path: str) -> None:
     for row in rows:
         if row["status"] != "completed":
             continue
-        is_case2 = (row.get("order_case") or 1) == 2
+        is_case2 = (row["order_case"] if "order_case" in row.keys() else None or 1) == 2
         if is_case2:
             recv_bank = (row["sender_bank"] or "").upper()
             recv_name = row["sender_name"] or ""
